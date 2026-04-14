@@ -333,20 +333,222 @@ export function ForecastBuilder({
 
       {/* ── Grid ── */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="text-base font-semibold">18-Month Forecast Grid</p>
             <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
               Pricing in {isCanada ? "CAD · per Litre" : "USD · per Gallon"}
             </span>
           </div>
-          <Button type="button" variant="outline" onClick={addRow}>
+          <Button type="button" variant="outline" onClick={addRow} className="shrink-0">
             <Plus className="h-4 w-4 mr-2" />
             Add Product
           </Button>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-border">
+        {/* ── Mobile card layout (< lg) ── */}
+        <div className="lg:hidden flex flex-col gap-3">
+          {rows.map((row) => {
+            const rowTotal = getRowTotal(row);
+            const product = products.find((p) => p.id === row.productId);
+            const vpu = parseFloat(row.volumePerUnit) || 0;
+            const ppv = parseFloat(row.pricePerVolume) || 0;
+            const computedUnitPrice = ppv > 0 && vpu > 0 ? ppv * vpu : null;
+
+            return (
+              <div key={row._key} className="rounded-lg border border-border bg-background overflow-hidden">
+                {/* Product selector row */}
+                <div className="flex items-center gap-1 px-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row._key)}
+                    disabled={rows.length === 1}
+                    className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive disabled:opacity-30"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <Select
+                    value={row.productId}
+                    onValueChange={(v) => v && updateRow(row._key, "productId", v)}
+                  >
+                    <SelectTrigger className="h-9 text-sm border-0 shadow-none focus:ring-0 px-1 flex-1">
+                      <SelectValue placeholder="Select product…">
+                        {product ? product.name : undefined}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="w-[min(420px,90vw)]">
+                      {products.map((p) => {
+                        const ppv = productPricePerVolume(p, isCanada);
+                        const displayPrice = ppv
+                          ? `${volumeLabel} ${parseFloat(ppv).toFixed(4)}`
+                          : formatCurrency(p.unitPrice);
+                        return (
+                          <SelectItem key={p.id} value={p.id}>
+                            <div className="flex flex-col py-0.5">
+                              <span className="font-medium leading-tight">{p.name}</span>
+                              <span className="text-xs text-muted-foreground leading-tight">
+                                {p.sku} &middot; {displayPrice}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {product && (
+                  <p className="text-[11px] text-muted-foreground pl-9 pb-1 leading-tight">
+                    {product.sku}
+                  </p>
+                )}
+
+                {/* Pack Size / $/Vol / Vol/Unit */}
+                <div className="grid grid-cols-3 gap-2 px-3 py-2 border-t border-border/60">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Pack Size</p>
+                    <Select
+                      value={row.packSize}
+                      onValueChange={(v) => v && updateRow(row._key, "packSize", v)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PACK_SIZES.map((ps) => (
+                          <SelectItem key={ps} value={ps}>{ps}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{volumeLabel}</p>
+                    <div className="space-y-0.5">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        value={row.pricePerVolume}
+                        onChange={(e) => updateRow(row._key, "pricePerVolume", e.target.value)}
+                        className="h-8 text-xs text-right"
+                        placeholder="0.0000"
+                      />
+                      {computedUnitPrice !== null && computedUnitPrice > 0 && (
+                        <p className="text-[10px] text-muted-foreground text-right whitespace-nowrap">
+                          {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{isCanada ? "L/Unit" : "Gal/Unit"}</p>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={row.volumePerUnit}
+                      onChange={(e) => updateRow(row._key, "volumePerUnit", e.target.value)}
+                      className="h-8 text-xs text-right"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                {/* Monthly quantities (horizontal scroll) */}
+                <div className="border-t border-border/60 overflow-x-auto">
+                  <table className="border-collapse text-xs w-full" style={{ minWidth: "max-content" }}>
+                    <thead>
+                      <tr className="bg-muted/50">
+                        {months.map((m) => (
+                          <th
+                            key={m.key}
+                            className="px-2 py-1.5 text-center font-semibold whitespace-nowrap border-r last:border-r-0"
+                            style={{ minWidth: 72 }}
+                          >
+                            {m.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        {months.map((m) => (
+                          <td
+                            key={m.key}
+                            className="px-1 py-1.5 border-r last:border-r-0"
+                            style={{ minWidth: 72 }}
+                          >
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={row.quantities[m.key] ?? ""}
+                              onChange={(e) => updateQty(row._key, m.key, e.target.value)}
+                              className="h-8 text-xs text-center w-full"
+                              placeholder="—"
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Row total */}
+                <div className="flex items-center justify-between px-3 py-2 border-t border-border/60 bg-muted/20">
+                  <span className="text-xs text-muted-foreground font-medium">Row Total</span>
+                  <span className="text-sm font-semibold">
+                    {rowTotal > 0 ? formatCurrency(rowTotal) : <span className="text-muted-foreground font-normal">—</span>}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Mobile monthly totals */}
+          <div className="rounded-lg border border-border bg-muted/30 overflow-hidden">
+            <p className="px-3 py-2 text-sm font-semibold border-b border-border/60">Monthly Total</p>
+            <div className="overflow-x-auto">
+              <table className="border-collapse text-xs w-full" style={{ minWidth: "max-content" }}>
+                <thead>
+                  <tr className="bg-muted/50">
+                    {months.map((m) => (
+                      <th
+                        key={m.key}
+                        className="px-2 py-1.5 text-center font-semibold whitespace-nowrap border-r last:border-r-0"
+                        style={{ minWidth: 72 }}
+                      >
+                        {m.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {months.map((m) => {
+                      const total = getMonthTotal(m.key);
+                      return (
+                        <td
+                          key={m.key}
+                          className="px-2 py-2 text-center border-r last:border-r-0"
+                          style={{ minWidth: 72 }}
+                        >
+                          {total > 0 ? (
+                            <span className="font-semibold">{formatCurrency(total)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Desktop table layout (≥ lg) ── */}
+        <div className="hidden lg:block overflow-x-auto rounded-lg border border-border">
           <table className="border-collapse text-sm" style={{ minWidth: "max-content" }}>
             <thead>
               {/* Year grouping row */}
@@ -383,32 +585,32 @@ export function ForecastBuilder({
                 />
               </tr>
 
-                    {/* Column labels row */}
-                  <tr className="bg-muted/60">
-                    <th
-                      className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                      style={{ minWidth: 280 }}
-                    >
-                      Product
-                    </th>
-                    <th
-                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                      style={{ left: 280, minWidth: 110 }}
-                    >
-                      Pack Size
-                    </th>
-                    <th
-                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
-                      style={{ left: 390, minWidth: 100 }}
-                    >
-                      {volumeLabel}
-                    </th>
-                    <th
-                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
-                      style={{ left: 490, minWidth: 80 }}
-                    >
-                      {isCanada ? "L/Unit" : "Gal/Unit"}
-                    </th>
+              {/* Column labels row */}
+              <tr className="bg-muted/60">
+                <th
+                  className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                  style={{ minWidth: 280 }}
+                >
+                  Product
+                </th>
+                <th
+                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                  style={{ left: 280, minWidth: 110 }}
+                >
+                  Pack Size
+                </th>
+                <th
+                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
+                  style={{ left: 390, minWidth: 100 }}
+                >
+                  {volumeLabel}
+                </th>
+                <th
+                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
+                  style={{ left: 490, minWidth: 80 }}
+                >
+                  {isCanada ? "L/Unit" : "Gal/Unit"}
+                </th>
                 {months.map((m) => (
                   <th
                     key={m.key}
@@ -622,17 +824,17 @@ export function ForecastBuilder({
       <Separator />
 
       {/* ── Footer ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <Calculator className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">18-Month Total:</span>
           <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
         </div>
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" size="lg" onClick={onCancel} disabled={saving}>
+        <div className="flex gap-3 sm:justify-end">
+          <Button type="button" variant="outline" size="lg" onClick={onCancel} disabled={saving} className="flex-1 sm:flex-none">
             Cancel
           </Button>
-          <Button type="submit" size="lg" disabled={saving}>
+          <Button type="submit" size="lg" disabled={saving} className="flex-1 sm:flex-none">
             {saving ? "Saving…" : "Save Forecast"}
           </Button>
         </div>
