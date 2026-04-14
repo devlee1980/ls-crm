@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Calculator } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
+
+const PACK_SIZES = [
+  "Each",
+  "Quart",
+  "Gallon",
+  "2.5 Gal",
+  "5 Gal",
+  "Case",
+  "Drum",
+  "Tote",
+  "Pallet",
+];
+
+const MONTH_COUNT = 18;
 
 interface Product {
   id: string;
@@ -33,17 +45,14 @@ interface Customer {
   retailPercent: number;
 }
 
-interface LineItem {
+interface ForecastRow {
   _key: string;
   productId: string;
-  quantity: string;
+  packSize: string;
   unitPrice: string;
-  wholesalePercent: string;
-  retailPercent: string;
-  notes: string;
+  quantities: Record<string, string>; // monthKey -> qty string
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ForecastBuilderProps {
   customers: Customer[];
   products: Product[];
@@ -52,15 +61,32 @@ interface ForecastBuilderProps {
   initialCustomerId?: string;
 }
 
-function newLineItem(product?: Product, customer?: Customer): LineItem {
+function generateMonths(startYearMonth: string) {
+  if (!startYearMonth) return [];
+  const [year, month] = startYearMonth.split("-").map(Number);
+  return Array.from({ length: MONTH_COUNT }, (_, i) => {
+    const d = new Date(year, month - 1 + i, 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+      shortLabel: d.toLocaleDateString("en-US", { month: "short" }),
+      year: d.getFullYear().toString(),
+    };
+  });
+}
+
+function todayYearMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function newRow(product?: Product): ForecastRow {
   return {
     _key: Math.random().toString(36).slice(2),
     productId: product?.id ?? "",
-    quantity: "1",
-    unitPrice: product?.unitPrice.toString() ?? "",
-    wholesalePercent: customer?.wholesalePercent.toString() ?? "0",
-    retailPercent: customer?.retailPercent.toString() ?? "100",
-    notes: "",
+    packSize: product?.uom ?? "Each",
+    unitPrice: product?.unitPrice?.toString() ?? "",
+    quantities: {},
   };
 }
 
@@ -72,98 +98,133 @@ export function ForecastBuilder({
   initialCustomerId,
 }: ForecastBuilderProps) {
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
-  const [period, setPeriod] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startMonth, setStartMonth] = useState(todayYearMonth);
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<LineItem[]>([newLineItem()]);
+  const [rows, setRows] = useState<ForecastRow[]>([newRow()]);
 
+  const months = useMemo(() => generateMonths(startMonth), [startMonth]);
   const selectedCustomer = customers.find((c) => c.id === customerId);
 
-  function addLine() {
-    setItems((prev) => [...prev, newLineItem(undefined, selectedCustomer)]);
+  function addRow() {
+    setRows((prev) => [...prev, newRow()]);
   }
 
-  function removeLine(key: string) {
-    setItems((prev) => prev.filter((i) => i._key !== key));
+  function removeRow(key: string) {
+    setRows((prev) => (prev.length > 1 ? prev.filter((r) => r._key !== key) : prev));
   }
 
-  function updateLine(key: string, field: keyof LineItem, value: string) {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item._key !== key) return item;
-        const updated = { ...item, [field]: value };
+  function updateRow(key: string, field: "productId" | "packSize" | "unitPrice", value: string) {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row._key !== key) return row;
+        const updated = { ...row, [field]: value };
         if (field === "productId") {
-          const product = products.find((p) => p.id === value);
-          if (product) updated.unitPrice = product.unitPrice.toString();
-        }
-        if (field === "wholesalePercent") {
-          updated.retailPercent = (100 - parseFloat(value || "0")).toString();
-        }
-        if (field === "retailPercent") {
-          updated.wholesalePercent = (100 - parseFloat(value || "0")).toString();
+          const p = products.find((p) => p.id === value);
+          if (p) {
+            updated.unitPrice = p.unitPrice.toString();
+            updated.packSize = p.uom;
+          }
         }
         return updated;
       })
     );
   }
 
-  function getLineTotal(item: LineItem): number {
-    const qty = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.unitPrice) || 0;
-    return qty * price;
+  function updateQty(key: string, monthKey: string, value: string) {
+    setRows((prev) =>
+      prev.map((row) =>
+        row._key === key
+          ? { ...row, quantities: { ...row.quantities, [monthKey]: value } }
+          : row
+      )
+    );
   }
 
-  const grandTotal = items.reduce((s, i) => s + getLineTotal(i), 0);
-
-  function handleCustomerChange(id: string) {
-    setCustomerId(id);
-    const cust = customers.find((c) => c.id === id);
-    if (cust) {
-      setItems((prev) =>
-        prev.map((item) => ({
-          ...item,
-          wholesalePercent: cust.wholesalePercent.toString(),
-          retailPercent: cust.retailPercent.toString(),
-        }))
-      );
-    }
+  function getRowTotal(row: ForecastRow): number {
+    const price = parseFloat(row.unitPrice) || 0;
+    return Object.values(row.quantities).reduce(
+      (s, q) => s + (parseFloat(q) || 0) * price,
+      0
+    );
   }
+
+  function getMonthTotal(monthKey: string): number {
+    return rows.reduce((s, row) => {
+      const qty = parseFloat(row.quantities[monthKey] || "0") || 0;
+      const price = parseFloat(row.unitPrice) || 0;
+      return s + qty * price;
+    }, 0);
+  }
+
+  const grandTotal = rows.reduce((s, row) => s + getRowTotal(row), 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const validItems = items.filter((i) => i.productId && parseFloat(i.quantity) > 0);
-    if (validItems.length === 0) {
-      alert("Please add at least one product line item.");
+    if (!customerId) { alert("Please select a customer."); return; }
+    if (months.length === 0) { alert("Please select a start month."); return; }
+
+    const ws = selectedCustomer?.wholesalePercent ?? 0;
+    const rt = selectedCustomer?.retailPercent ?? 100;
+
+    const items: Record<string, unknown>[] = [];
+
+    for (const row of rows) {
+      if (!row.productId) continue;
+      const price = parseFloat(row.unitPrice) || 0;
+      for (const m of months) {
+        const qty = parseFloat(row.quantities[m.key] || "0") || 0;
+        if (qty <= 0) continue;
+        items.push({
+          productId: row.productId,
+          quantity: qty,
+          unitPrice: price,
+          wholesalePercent: ws,
+          retailPercent: rt,
+          lineTotal: qty * price,
+          notes: `${m.key}|${row.packSize}`,
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      alert("Please enter at least one quantity in the grid.");
       return;
     }
 
+    const startDate = new Date(months[0].key + "-01");
+    const lastMonth = months[months.length - 1];
+    const endDate = new Date(lastMonth.key + "-01");
+    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setDate(0);
+
     onSave({
       customerId,
-      period,
-      startDate,
-      endDate,
+      period: `${months[0].label} – ${lastMonth.label}`,
+      startDate: startDate.toISOString().split("T")[0],
+      endDate: endDate.toISOString().split("T")[0],
       notes: notes || null,
-      items: validItems.map((i) => ({
-        productId: i.productId,
-        quantity: parseFloat(i.quantity),
-        unitPrice: parseFloat(i.unitPrice),
-        wholesalePercent: parseFloat(i.wholesalePercent),
-        retailPercent: parseFloat(i.retailPercent),
-        lineTotal: getLineTotal(i),
-        notes: i.notes || null,
-      })),
+      items,
     });
   }
 
+  // Group months by year for the header
+  const yearGroups = months.reduce<Record<string, number>>((acc, m) => {
+    acc[m.year] = (acc[m.year] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-7">
-      {/* Header fields */}
-      <div className="grid grid-cols-2 gap-5">
-        <div className="space-y-2 col-span-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {/* ── Header fields ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="space-y-2">
           <Label className="text-sm font-medium">Customer *</Label>
-          <Select value={customerId} onValueChange={(v) => v && handleCustomerChange(v)} required>
-            <SelectTrigger className="h-11 text-sm">
+          <Select
+            value={customerId}
+            onValueChange={(v) => v && setCustomerId(v)}
+            required
+          >
+            <SelectTrigger className="h-11">
               <SelectValue placeholder="Select customer" />
             </SelectTrigger>
             <SelectContent>
@@ -177,36 +238,19 @@ export function ForecastBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Period *</Label>
+          <Label className="text-sm font-medium">Start Month *</Label>
           <Input
-            className="h-11 text-sm"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            placeholder="Q1 2026, 2026, etc."
+            className="h-11"
+            type="month"
+            value={startMonth}
+            onChange={(e) => setStartMonth(e.target.value)}
             required
           />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Start Date *</Label>
-          <Input
-            className="h-11 text-sm"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">End Date *</Label>
-          <Input
-            className="h-11 text-sm"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
+          {months.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {months[0].label} – {months[months.length - 1].label} &nbsp;({MONTH_COUNT} months)
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -214,7 +258,7 @@ export function ForecastBuilder({
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={3}
+            rows={2}
             className="text-sm resize-none"
             placeholder="Optional forecast notes"
           />
@@ -223,144 +267,256 @@ export function ForecastBuilder({
 
       <Separator />
 
-      {/* Line items */}
+      {/* ── Grid ── */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-semibold">Product Line Items</p>
-          <Button type="button" variant="outline" onClick={addLine}>
+          <p className="text-base font-semibold">18-Month Forecast Grid</p>
+          <Button type="button" variant="outline" onClick={addRow}>
             <Plus className="h-4 w-4 mr-2" />
             Add Product
           </Button>
         </div>
 
-        <div className="space-y-4">
-          {items.map((item, idx) => {
-            const lineTotal = getLineTotal(item);
-            return (
-              <Card key={item._key} className="border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-semibold text-muted-foreground">
-                      Line {idx + 1}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      {lineTotal > 0 && (
-                        <Badge variant="secondary" className="text-sm px-3 py-1">
-                          {formatCurrency(lineTotal)}
-                        </Badge>
-                      )}
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeLine(item._key)}
-                        disabled={items.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="border-collapse text-sm" style={{ minWidth: "max-content" }}>
+            <thead>
+              {/* Year grouping row */}
+              <tr className="bg-muted/80">
+                <th
+                  className="sticky left-0 z-30 bg-muted/90 border-b border-r px-3 py-2"
+                  style={{ minWidth: 220 }}
+                />
+                <th
+                  className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2"
+                  style={{ left: 220, minWidth: 110 }}
+                />
+                <th
+                  className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2 text-right"
+                  style={{ left: 330, minWidth: 110 }}
+                />
+                {Object.entries(yearGroups).map(([year, count]) => (
+                  <th
+                    key={year}
+                    colSpan={count}
+                    className="border-b border-r px-3 py-2 text-center font-bold text-sm tracking-wide"
+                    style={{ minWidth: count * 84 }}
+                  >
+                    {year}
+                  </th>
+                ))}
+                <th
+                  className="sticky right-0 z-30 bg-muted/90 border-b px-3 py-2"
+                  style={{ minWidth: 120 }}
+                />
+              </tr>
 
-                  {/* Product selector — full width */}
-                  <div className="space-y-2 mb-4">
-                    <Label className="text-sm font-medium">Product *</Label>
-                    <Select
-                      value={item.productId}
-                      onValueChange={(v) => v && updateLine(item._key, "productId", v)}
+              {/* Column labels row */}
+              <tr className="bg-muted/60">
+                <th
+                  className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                  style={{ minWidth: 220 }}
+                >
+                  Product
+                </th>
+                <th
+                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                  style={{ left: 220, minWidth: 110 }}
+                >
+                  Pack Size
+                </th>
+                <th
+                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
+                  style={{ left: 330, minWidth: 110 }}
+                >
+                  Unit Price
+                </th>
+                {months.map((m) => (
+                  <th
+                    key={m.key}
+                    className="border-b border-r px-2 py-3 text-center font-semibold whitespace-nowrap"
+                    style={{ minWidth: 84 }}
+                  >
+                    {m.shortLabel}
+                  </th>
+                ))}
+                <th
+                  className="sticky right-0 z-20 bg-muted/70 border-b px-3 py-3 text-right font-semibold"
+                  style={{ minWidth: 120 }}
+                >
+                  Row Total
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {rows.map((row) => {
+                const rowTotal = getRowTotal(row);
+                const product = products.find((p) => p.id === row.productId);
+
+                return (
+                  <tr key={row._key} className="border-b hover:bg-muted/10 group">
+                    {/* Product */}
+                    <td
+                      className="sticky left-0 z-10 bg-background border-r px-2 py-2"
+                      style={{ minWidth: 220 }}
                     >
-                      <SelectTrigger className="h-11 text-sm">
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.sku} — {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => removeRow(row._key)}
+                          disabled={rows.length === 1}
+                          className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive disabled:opacity-30"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                        <Select
+                          value={row.productId}
+                          onValueChange={(v) => v && updateRow(row._key, "productId", v)}
+                        >
+                          <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 px-1 flex-1">
+                            <SelectValue placeholder="Select product…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.sku} — {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {product && (
+                        <p className="text-[11px] text-muted-foreground pl-7 leading-tight">
+                          {product.sku}
+                        </p>
+                      )}
+                    </td>
 
-                  {/* Numeric fields — 4 columns */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Quantity *</Label>
+                    {/* Pack Size */}
+                    <td
+                      className="sticky z-10 bg-background border-r px-2 py-2"
+                      style={{ left: 220, minWidth: 110 }}
+                    >
+                      <Select
+                        value={row.packSize}
+                        onValueChange={(v) => v && updateRow(row._key, "packSize", v)}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PACK_SIZES.map((ps) => (
+                            <SelectItem key={ps} value={ps}>
+                              {ps}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+
+                    {/* Unit Price */}
+                    <td
+                      className="sticky z-10 bg-background border-r px-2 py-2"
+                      style={{ left: 330, minWidth: 110 }}
+                    >
                       <Input
-                        className="h-11 text-sm"
                         type="number"
                         min="0"
                         step="0.01"
-                        value={item.quantity}
-                        onChange={(e) => updateLine(item._key, "quantity", e.target.value)}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Unit Price ($)</Label>
-                      <Input
-                        className="h-11 text-sm"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => updateLine(item._key, "unitPrice", e.target.value)}
+                        value={row.unitPrice}
+                        onChange={(e) => updateRow(row._key, "unitPrice", e.target.value)}
+                        className="h-9 text-xs text-right"
                         placeholder="0.00"
                       />
-                    </div>
+                    </td>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Wholesale %</Label>
-                      <Input
-                        className="h-11 text-sm"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={item.wholesalePercent}
-                        onChange={(e) => updateLine(item._key, "wholesalePercent", e.target.value)}
-                      />
-                    </div>
+                    {/* Monthly quantity inputs */}
+                    {months.map((m) => (
+                      <td
+                        key={m.key}
+                        className="border-r px-1 py-2 text-center"
+                        style={{ minWidth: 84 }}
+                      >
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={row.quantities[m.key] ?? ""}
+                          onChange={(e) => updateQty(row._key, m.key, e.target.value)}
+                          className="h-9 text-xs text-center w-full"
+                          placeholder="—"
+                        />
+                      </td>
+                    ))}
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Retail %</Label>
-                      <Input
-                        className="h-11 text-sm"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={item.retailPercent}
-                        onChange={(e) => updateLine(item._key, "retailPercent", e.target.value)}
-                      />
-                    </div>
-                  </div>
+                    {/* Row total */}
+                    <td
+                      className="sticky right-0 z-10 bg-background px-3 py-2 text-right font-semibold text-sm"
+                      style={{ minWidth: 120 }}
+                    >
+                      {rowTotal > 0 ? (
+                        formatCurrency(rowTotal)
+                      ) : (
+                        <span className="text-muted-foreground font-normal">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
 
-                  {/* Line total — below numerics */}
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Line Total:</span>
-                    <span className="text-base font-semibold">{formatCurrency(lineTotal)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+              {/* Monthly totals row */}
+              <tr className="border-t-2 bg-muted/40 font-semibold">
+                <td
+                  className="sticky left-0 z-10 bg-muted/60 px-3 py-3 text-sm border-r"
+                  colSpan={3}
+                  style={{ minWidth: 440 }}
+                >
+                  Monthly Total
+                </td>
+                {months.map((m) => {
+                  const total = getMonthTotal(m.key);
+                  return (
+                    <td
+                      key={m.key}
+                      className="border-r px-1 py-3 text-center text-xs"
+                      style={{ minWidth: 84 }}
+                    >
+                      {total > 0 ? (
+                        <span className="font-semibold">{formatCurrency(total)}</span>
+                      ) : (
+                        <span className="text-muted-foreground font-normal">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+                <td
+                  className="sticky right-0 z-10 bg-muted/60 px-3 py-3 text-right text-sm"
+                  style={{ minWidth: 120 }}
+                >
+                  {formatCurrency(grandTotal)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
       <Separator />
 
-      {/* Total + submit */}
-      <div className="flex items-center justify-between pt-1">
+      {/* ── Footer ── */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Calculator className="h-5 w-5 text-primary" />
-          <span className="text-base font-semibold">Total Forecast:</span>
+          <span className="text-base font-semibold">18-Month Total:</span>
           <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
         </div>
         <div className="flex gap-3">
           <Button type="button" variant="outline" size="lg" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" size="lg">Save Forecast</Button>
+          <Button type="submit" size="lg">
+            Save Forecast
+          </Button>
         </div>
       </div>
     </form>
