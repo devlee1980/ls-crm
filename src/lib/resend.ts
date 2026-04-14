@@ -1,8 +1,6 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function getManagerEmails(): Promise<string[]> {
   const users = await prisma.user.findMany({
     where: {
@@ -31,6 +29,7 @@ export async function sendEmail({ from, to, subject, html }: SendEmailOptions) {
     return;
   }
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({ from, to, subject, html });
   } catch (err) {
     console.error("[resend] Failed to send email:", err);
