@@ -25,10 +25,21 @@ export default async function ForecastNewPage() {
     }),
     prisma.product.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, sku: true, unitPrice: true, uom: true },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        unitPrice: true,
+        uom: true,
+        pricePerGallon: true,
+        gallonsPerCase: true,
+        litersPerCase: true,
+      },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  return <ForecastBuilderPage customers={customers} products={products} />;
+  return (
+    <ForecastBuilderPage customers={customers} products={products} division={division ?? null} />
+  );
 }

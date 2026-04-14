@@ -20,14 +20,18 @@ interface Product {
   sku: string;
   unitPrice: number;
   uom: string;
+  pricePerGallon: number | null;
+  gallonsPerCase: number | null;
+  litersPerCase: number | null;
 }
 
 interface Props {
   customers: Customer[];
   products: Product[];
+  division: string | null;
 }
 
-export function ForecastBuilderPage({ customers, products }: Props) {
+export function ForecastBuilderPage({ customers, products, division }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -95,6 +99,7 @@ export function ForecastBuilderPage({ customers, products }: Props) {
         <ForecastBuilder
           customers={customers}
           products={products}
+          division={division}
           onSave={handleSave}
           onCancel={handleCancel}
           saving={saving}

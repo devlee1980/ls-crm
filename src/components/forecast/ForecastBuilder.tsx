@@ -16,6 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Calculator } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 
+const LITERS_PER_GALLON = 3.78541;
+
 const PACK_SIZES = [
   "Each",
   "Quart",
@@ -23,8 +25,12 @@ const PACK_SIZES = [
   "2.5 Gal",
   "5 Gal",
   "Case",
+  "Case 2x2.5",
+  "Case 4x1",
   "Drum",
   "Tote",
+  "Tote 135 Gal",
+  "Tote 265 Gal",
   "Pallet",
 ];
 
@@ -36,6 +42,9 @@ interface Product {
   sku: string;
   unitPrice: number;
   uom: string;
+  pricePerGallon: number | null;
+  gallonsPerCase: number | null;
+  litersPerCase: number | null;
 }
 
 interface Customer {
@@ -49,13 +58,19 @@ interface ForecastRow {
   _key: string;
   productId: string;
   packSize: string;
-  unitPrice: string;
+  /** $/gal for US rows with volume pricing; $/L for Canada; 0 means use flatUnitPrice */
+  pricePerVolume: string;
+  /** gallons per unit (US) or liters per unit (Canada); 0 = not a volume product */
+  volumePerUnit: number;
+  /** fallback price per unit for non-volume products */
+  flatUnitPrice: string;
   quantities: Record<string, string>; // monthKey -> qty string
 }
 
 interface ForecastBuilderProps {
   customers: Customer[];
   products: Product[];
+  division: string | null;
   onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
   initialCustomerId?: string;
@@ -81,41 +96,79 @@ function todayYearMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function newRow(product?: Product): ForecastRow {
+function resolveVolumeFields(
+  product: Product,
+  isCanada: boolean
+): { pricePerVolume: string; volumePerUnit: number } {
+  const ppg = product.pricePerGallon;
+  if (!ppg) return { pricePerVolume: "", volumePerUnit: 0 };
+
+  if (isCanada) {
+    const ppl = ppg / LITERS_PER_GALLON;
+    const lpc = product.litersPerCase ?? 0;
+    return {
+      pricePerVolume: ppl.toFixed(4),
+      volumePerUnit: lpc,
+    };
+  } else {
+    const gpc = product.gallonsPerCase ?? 0;
+    return {
+      pricePerVolume: ppg.toFixed(4),
+      volumePerUnit: gpc,
+    };
+  }
+}
+
+function newRow(product?: Product, isCanada = false): ForecastRow {
+  const volumeFields = product ? resolveVolumeFields(product, isCanada) : { pricePerVolume: "", volumePerUnit: 0 };
   return {
     _key: Math.random().toString(36).slice(2),
     productId: product?.id ?? "",
     packSize: product?.uom ?? "Each",
-    unitPrice: product?.unitPrice?.toString() ?? "",
+    pricePerVolume: volumeFields.pricePerVolume,
+    volumePerUnit: volumeFields.volumePerUnit,
+    flatUnitPrice: product?.unitPrice?.toString() ?? "",
     quantities: {},
   };
+}
+
+/** Returns the effective per-unit price for line total calculation */
+function effectiveUnitPrice(row: ForecastRow): number {
+  if (row.volumePerUnit > 0) {
+    return (parseFloat(row.pricePerVolume) || 0) * row.volumePerUnit;
+  }
+  return parseFloat(row.flatUnitPrice) || 0;
 }
 
 export function ForecastBuilder({
   customers,
   products,
+  division,
   onSave,
   onCancel,
   initialCustomerId,
   saving = false,
 }: ForecastBuilderProps) {
+  const isCanada = division === "LS_CANADA";
+  const volumeLabel = isCanada ? "$/L" : "$/Gal";
+
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
   const [startMonth, setStartMonth] = useState(todayYearMonth);
   const [notes, setNotes] = useState("");
-  const [rows, setRows] = useState<ForecastRow[]>([newRow()]);
+  const [rows, setRows] = useState<ForecastRow[]>([newRow(undefined, isCanada)]);
 
   const months = useMemo(() => generateMonths(startMonth), [startMonth]);
   const selectedCustomer = customers.find((c) => c.id === customerId);
 
   function addRow() {
-    setRows((prev) => [...prev, newRow()]);
+    setRows((prev) => [...prev, newRow(undefined, isCanada)]);
   }
 
   function removeRow(key: string) {
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r._key !== key) : prev));
   }
 
-  function updateRow(key: string, field: "productId" | "packSize" | "unitPrice", value: string) {
+  function updateRow(key: string, field: "productId" | "packSize" | "pricePerVolume" | "flatUnitPrice", value: string) {
     setRows((prev) =>
       prev.map((row) => {
         if (row._key !== key) return row;
@@ -123,7 +176,10 @@ export function ForecastBuilder({
         if (field === "productId") {
           const p = products.find((p) => p.id === value);
           if (p) {
-            updated.unitPrice = p.unitPrice.toString();
+            const vf = resolveVolumeFields(p, isCanada);
+            updated.pricePerVolume = vf.pricePerVolume;
+            updated.volumePerUnit = vf.volumePerUnit;
+            updated.flatUnitPrice = p.unitPrice.toString();
             updated.packSize = p.uom;
           }
         }
@@ -143,7 +199,7 @@ export function ForecastBuilder({
   }
 
   function getRowTotal(row: ForecastRow): number {
-    const price = parseFloat(row.unitPrice) || 0;
+    const price = effectiveUnitPrice(row);
     return Object.values(row.quantities).reduce(
       (s, q) => s + (parseFloat(q) || 0) * price,
       0
@@ -153,8 +209,7 @@ export function ForecastBuilder({
   function getMonthTotal(monthKey: string): number {
     return rows.reduce((s, row) => {
       const qty = parseFloat(row.quantities[monthKey] || "0") || 0;
-      const price = parseFloat(row.unitPrice) || 0;
-      return s + qty * price;
+      return s + qty * effectiveUnitPrice(row);
     }, 0);
   }
 
@@ -172,17 +227,17 @@ export function ForecastBuilder({
 
     for (const row of rows) {
       if (!row.productId) continue;
-      const price = parseFloat(row.unitPrice) || 0;
+      const unitPrice = effectiveUnitPrice(row);
       for (const m of months) {
         const qty = parseFloat(row.quantities[m.key] || "0") || 0;
         if (qty <= 0) continue;
         items.push({
           productId: row.productId,
           quantity: qty,
-          unitPrice: price,
+          unitPrice,
           wholesalePercent: ws,
           retailPercent: rt,
-          lineTotal: qty * price,
+          lineTotal: qty * unitPrice,
           notes: `${m.key}|${row.packSize}`,
         });
       }
@@ -274,7 +329,12 @@ export function ForecastBuilder({
       {/* ── Grid ── */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-base font-semibold">18-Month Forecast Grid</p>
+          <div className="flex items-center gap-3">
+            <p className="text-base font-semibold">18-Month Forecast Grid</p>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              Pricing in {isCanada ? "CAD · per Litre" : "USD · per Gallon"}
+            </span>
+          </div>
           <Button type="button" variant="outline" onClick={addRow}>
             <Plus className="h-4 w-4 mr-2" />
             Add Product
@@ -330,9 +390,9 @@ export function ForecastBuilder({
                 </th>
                 <th
                   className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
-                  style={{ left: 390, minWidth: 110 }}
+                  style={{ left: 390, minWidth: 130 }}
                 >
-                  Unit Price
+                  {volumeLabel}
                 </th>
                 {months.map((m) => (
                   <th
@@ -356,6 +416,10 @@ export function ForecastBuilder({
               {rows.map((row) => {
                 const rowTotal = getRowTotal(row);
                 const product = products.find((p) => p.id === row.productId);
+                const hasVolume = row.volumePerUnit > 0;
+                const computedUnitPrice = hasVolume
+                  ? (parseFloat(row.pricePerVolume) || 0) * row.volumePerUnit
+                  : null;
 
                 return (
                   <tr key={row._key} className="border-b hover:bg-muted/10 group">
@@ -383,16 +447,22 @@ export function ForecastBuilder({
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent className="w-[420px]">
-                            {products.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                <div className="flex flex-col py-0.5">
-                                  <span className="font-medium leading-tight">{p.name}</span>
-                                  <span className="text-xs text-muted-foreground leading-tight">
-                                    {p.sku} &middot; {formatCurrency(p.unitPrice)}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
+                            {products.map((p) => {
+                              const vf = resolveVolumeFields(p, isCanada);
+                              const displayPrice = vf.pricePerVolume
+                                ? `${volumeLabel} ${parseFloat(vf.pricePerVolume).toFixed(4)}`
+                                : formatCurrency(p.unitPrice);
+                              return (
+                                <SelectItem key={p.id} value={p.id}>
+                                  <div className="flex flex-col py-0.5">
+                                    <span className="font-medium leading-tight">{p.name}</span>
+                                    <span className="text-xs text-muted-foreground leading-tight">
+                                      {p.sku} &middot; {displayPrice}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -425,20 +495,39 @@ export function ForecastBuilder({
                       </Select>
                     </td>
 
-                    {/* Unit Price */}
+                    {/* Price per volume or flat unit price */}
                     <td
                       className="sticky z-10 bg-background border-r px-2 py-2"
-                      style={{ left: 390, minWidth: 110 }}
+                      style={{ left: 390, minWidth: 130 }}
                     >
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={row.unitPrice}
-                        onChange={(e) => updateRow(row._key, "unitPrice", e.target.value)}
-                        className="h-9 text-xs text-right"
-                        placeholder="0.00"
-                      />
+                      {hasVolume ? (
+                        <div className="space-y-0.5">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.0001"
+                            value={row.pricePerVolume}
+                            onChange={(e) => updateRow(row._key, "pricePerVolume", e.target.value)}
+                            className="h-9 text-xs text-right"
+                            placeholder="0.0000"
+                          />
+                          {computedUnitPrice !== null && computedUnitPrice > 0 && (
+                            <p className="text-[10px] text-muted-foreground text-right pr-1">
+                              {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.flatUnitPrice}
+                          onChange={(e) => updateRow(row._key, "flatUnitPrice", e.target.value)}
+                          className="h-9 text-xs text-right"
+                          placeholder="0.00"
+                        />
+                      )}
                     </td>
 
                     {/* Monthly quantity inputs */}
@@ -480,7 +569,7 @@ export function ForecastBuilder({
                 <td
                   className="sticky left-0 z-10 bg-muted/60 px-3 py-3 text-sm border-r"
                   colSpan={3}
-                  style={{ minWidth: 500 }}
+                  style={{ minWidth: 520 }}
                 >
                   Monthly Total
                 </td>
