@@ -69,6 +69,27 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await prisma.customer.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+
+  try {
+    await prisma.$transaction([
+      // Forecast items → forecasts (required relation, must delete children first)
+      prisma.forecastItem.deleteMany({ where: { forecast: { customerId: id } } }),
+      prisma.forecast.deleteMany({ where: { customerId: id } }),
+      // Revenue items → revenue records (required relation, must delete children first)
+      prisma.revenueItem.deleteMany({ where: { revenueRecord: { customerId: id } } }),
+      prisma.revenueRecord.deleteMany({ where: { customerId: id } }),
+      // Pipeline deals (optional relation — delete rather than nullify)
+      prisma.pipelineDeal.deleteMany({ where: { customerId: id } }),
+      // Action items & attachments are optional — detach instead of delete
+      prisma.actionItem.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.attachment.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      // Delete the customer itself (cascades contacts + locations via schema)
+      prisma.customer.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("[DELETE /api/customers/:id]", err);
+    return NextResponse.json({ error: "Failed to delete customer" }, { status: 500 });
+  }
 }
