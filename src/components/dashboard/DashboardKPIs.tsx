@@ -23,7 +23,7 @@ export function DashboardKPIs({ kpis }: { kpis: KPIs }) {
       value: kpis.openForecastCount.toLocaleString(),
       icon: TrendingUp,
       color: "text-primary",
-      bg: "bg-green-50",
+      bg: "bg-orange-50",
     },
     {
       label: "Total Revenue",

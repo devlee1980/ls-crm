@@ -8,7 +8,7 @@ import {
   Package,
   TrendingUp,
   CheckSquare,
-  Leaf,
+  FlaskConical,
   LogOut,
   ChevronRight,
 } from "lucide-react";
@@ -30,8 +30,8 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-sidebar flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <div className="bg-green-500 rounded-lg p-2">
-          <Leaf className="h-5 w-5 text-white" />
+        <div className="bg-[#E85A1E] rounded-lg p-2">
+          <FlaskConical className="h-5 w-5 text-white" />
         </div>
         <div>
           <span className="text-sidebar-foreground font-bold text-lg tracking-tight">

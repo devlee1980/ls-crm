@@ -55,33 +55,35 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  /* LifeScientific green primary */
-  --primary: oklch(0.44 0.15 155);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.01 155);
-  --secondary-foreground: oklch(0.205 0 0);
+  /* LifeScientific brand orange primary */
+  --primary: oklch(0.60 0.22 38);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0.02 38);
+  --secondary-foreground: oklch(0.20 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.94 0.04 155);
-  --accent-foreground: oklch(0.3 0.1 155);
+  --accent: oklch(0.94 0.06 38);
+  --accent-foreground: oklch(0.35 0.12 38);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.44 0.15 155);
-  --chart-1: oklch(0.44 0.15 155);
-  --chart-2: oklch(0.6 0.12 200);
-  --chart-3: oklch(0.7 0.14 90);
-  --chart-4: oklch(0.55 0.18 30);
-  --chart-5: oklch(0.5 0.2 290);
+  --ring: oklch(0.60 0.22 38);
+  /* Chart palette: orange anchor, complementary hues */
+  --chart-1: oklch(0.60 0.22 38);
+  --chart-2: oklch(0.55 0.18 200);
+  --chart-3: oklch(0.65 0.14 90);
+  --chart-4: oklch(0.45 0.15 280);
+  --chart-5: oklch(0.50 0.20 160);
   --radius: 0.625rem;
-  --sidebar: oklch(0.18 0.04 155);
+  /* LifeScientific brand dark navy sidebar */
+  --sidebar: oklch(0.16 0.02 250);
   --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.55 0.16 155);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.26 0.05 155);
+  --sidebar-primary: oklch(0.60 0.22 38);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.22 0.03 250);
   --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(0.3 0.04 155);
-  --sidebar-ring: oklch(0.55 0.16 155);
+  --sidebar-border: oklch(0.25 0.03 250);
+  --sidebar-ring: oklch(0.60 0.22 38);
 }
 
 .dark {
