@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { signOut, useSession } from "next-auth/react";
-import { Bell, Settings, CalendarDays } from "lucide-react";
+import { Bell, Settings, CalendarDays, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "./SidebarContext";
 
 const DIVISION_LABELS: Record<string, string> = {
   LS_US: "LS US",
@@ -31,6 +32,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle }: HeaderProps) {
   const { data: session } = useSession();
+  const { toggle } = useSidebar();
   const user = session?.user;
   const extUser = user as { role?: string; division?: string } | undefined;
   const initials = user?.name
@@ -47,10 +49,22 @@ export function Header({ title, subtitle }: HeaderProps) {
   const division = extUser?.division;
 
   return (
-    <header className="h-16 border-b bg-background flex items-center justify-between px-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+    <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden shrink-0"
+          onClick={toggle}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

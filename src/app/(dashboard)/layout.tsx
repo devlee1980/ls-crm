@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SessionProvider } from "@/components/layout/SessionProvider";
+import { SidebarProvider } from "@/components/layout/SidebarContext";
 
 export default async function DashboardLayout({
   children,
@@ -13,12 +14,14 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider session={session}>
-      <div className="flex h-screen bg-muted/30">
-        <Sidebar />
-        <div className="flex-1 flex flex-col ml-64 min-h-screen overflow-auto">
-          {children}
+      <SidebarProvider>
+        <div className="flex h-screen bg-muted/30">
+          <Sidebar />
+          <div className="flex-1 flex flex-col lg:ml-64 min-h-screen overflow-auto">
+            {children}
+          </div>
         </div>
-      </div>
+      </SidebarProvider>
     </SessionProvider>
   );
 }
