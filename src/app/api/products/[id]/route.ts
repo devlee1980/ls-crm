@@ -11,6 +11,9 @@ const productSchema = z.object({
   category: z.string().optional().nullable(),
   unitPrice: z.number().positive().optional(),
   uom: z.string().optional(),
+  pricePerGallon: z.number().nonnegative().optional().nullable(),
+  gallonsPerCase: z.number().nonnegative().optional().nullable(),
+  litersPerCase: z.number().nonnegative().optional().nullable(),
   isActive: z.boolean().optional(),
 });
 

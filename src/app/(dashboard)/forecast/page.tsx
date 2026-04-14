@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ForecastList } from "@/components/forecast/ForecastList";
-import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
+import { shouldFilterByDivision } from "@/lib/division";
 
 export default async function ForecastPage() {
   const session = await auth();
@@ -25,21 +25,6 @@ export default async function ForecastPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const customers = await prisma.customer.findMany({
-    where: {
-      ...getDivisionFilter(role, division),
-      ...(role === "REP" ? { assignedRepId: userId } : {}),
-    },
-    select: { id: true, name: true, wholesalePercent: true, retailPercent: true },
-    orderBy: { name: "asc" },
-  });
-
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true, sku: true, unitPrice: true, uom: true },
-    orderBy: { name: "asc" },
-  });
-
   return (
     <div className="flex flex-col">
       <Header
@@ -47,11 +32,7 @@ export default async function ForecastPage() {
         subtitle="Build and manage sales forecasts by customer and product"
       />
       <main className="flex-1 p-6">
-        <ForecastList
-          initialForecasts={forecasts}
-          customers={customers}
-          products={products}
-        />
+        <ForecastList initialForecasts={forecasts} />
       </main>
     </div>
   );

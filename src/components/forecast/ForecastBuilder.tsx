@@ -59,6 +59,7 @@ interface ForecastBuilderProps {
   onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
   initialCustomerId?: string;
+  saving?: boolean;
 }
 
 function generateMonths(startYearMonth: string) {
@@ -96,6 +97,7 @@ export function ForecastBuilder({
   onSave,
   onCancel,
   initialCustomerId,
+  saving = false,
 }: ForecastBuilderProps) {
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
   const [startMonth, setStartMonth] = useState(todayYearMonth);
@@ -225,7 +227,9 @@ export function ForecastBuilder({
             required
           >
             <SelectTrigger className="h-11">
-              <SelectValue placeholder="Select customer" />
+              <SelectValue placeholder="Select customer">
+                {selectedCustomer ? selectedCustomer.name : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {customers.map((c) => (
@@ -284,15 +288,15 @@ export function ForecastBuilder({
               <tr className="bg-muted/80">
                 <th
                   className="sticky left-0 z-30 bg-muted/90 border-b border-r px-3 py-2"
-                  style={{ minWidth: 220 }}
+                  style={{ minWidth: 280 }}
                 />
                 <th
                   className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2"
-                  style={{ left: 220, minWidth: 110 }}
+                  style={{ left: 280, minWidth: 110 }}
                 />
                 <th
                   className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2 text-right"
-                  style={{ left: 330, minWidth: 110 }}
+                  style={{ left: 390, minWidth: 110 }}
                 />
                 {Object.entries(yearGroups).map(([year, count]) => (
                   <th
@@ -314,19 +318,19 @@ export function ForecastBuilder({
               <tr className="bg-muted/60">
                 <th
                   className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                  style={{ minWidth: 220 }}
+                  style={{ minWidth: 280 }}
                 >
                   Product
                 </th>
                 <th
                   className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                  style={{ left: 220, minWidth: 110 }}
+                  style={{ left: 280, minWidth: 110 }}
                 >
                   Pack Size
                 </th>
                 <th
                   className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
-                  style={{ left: 330, minWidth: 110 }}
+                  style={{ left: 390, minWidth: 110 }}
                 >
                   Unit Price
                 </th>
@@ -358,7 +362,7 @@ export function ForecastBuilder({
                     {/* Product */}
                     <td
                       className="sticky left-0 z-10 bg-background border-r px-2 py-2"
-                      style={{ minWidth: 220 }}
+                      style={{ minWidth: 280 }}
                     >
                       <div className="flex items-center gap-1">
                         <button
@@ -373,20 +377,27 @@ export function ForecastBuilder({
                           value={row.productId}
                           onValueChange={(v) => v && updateRow(row._key, "productId", v)}
                         >
-                          <SelectTrigger className="h-9 text-xs border-0 shadow-none focus:ring-0 px-1 flex-1">
-                            <SelectValue placeholder="Select product…" />
+                          <SelectTrigger className="h-9 text-sm border-0 shadow-none focus:ring-0 px-1 flex-1">
+                            <SelectValue placeholder="Select product…">
+                              {product ? product.name : undefined}
+                            </SelectValue>
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="w-[420px]">
                             {products.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
-                                {p.sku} — {p.name}
+                                <div className="flex flex-col py-0.5">
+                                  <span className="font-medium leading-tight">{p.name}</span>
+                                  <span className="text-xs text-muted-foreground leading-tight">
+                                    {p.sku} &middot; {formatCurrency(p.unitPrice)}
+                                  </span>
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       {product && (
-                        <p className="text-[11px] text-muted-foreground pl-7 leading-tight">
+                        <p className="text-[11px] text-muted-foreground pl-7 leading-tight mt-0.5">
                           {product.sku}
                         </p>
                       )}
@@ -395,7 +406,7 @@ export function ForecastBuilder({
                     {/* Pack Size */}
                     <td
                       className="sticky z-10 bg-background border-r px-2 py-2"
-                      style={{ left: 220, minWidth: 110 }}
+                      style={{ left: 280, minWidth: 110 }}
                     >
                       <Select
                         value={row.packSize}
@@ -417,7 +428,7 @@ export function ForecastBuilder({
                     {/* Unit Price */}
                     <td
                       className="sticky z-10 bg-background border-r px-2 py-2"
-                      style={{ left: 330, minWidth: 110 }}
+                      style={{ left: 390, minWidth: 110 }}
                     >
                       <Input
                         type="number"
@@ -469,7 +480,7 @@ export function ForecastBuilder({
                 <td
                   className="sticky left-0 z-10 bg-muted/60 px-3 py-3 text-sm border-r"
                   colSpan={3}
-                  style={{ minWidth: 440 }}
+                  style={{ minWidth: 500 }}
                 >
                   Monthly Total
                 </td>
@@ -511,11 +522,11 @@ export function ForecastBuilder({
           <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
         </div>
         <div className="flex gap-3">
-          <Button type="button" variant="outline" size="lg" onClick={onCancel}>
+          <Button type="button" variant="outline" size="lg" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" size="lg">
-            Save Forecast
+          <Button type="submit" size="lg" disabled={saving}>
+            {saving ? "Saving…" : "Save Forecast"}
           </Button>
         </div>
       </div>

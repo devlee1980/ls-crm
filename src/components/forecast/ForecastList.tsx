@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,11 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Search, TrendingUp, ExternalLink, Trash2 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
-import { ForecastBuilder } from "./ForecastBuilder";
 
 interface Forecast {
   id: string;
@@ -39,42 +36,14 @@ interface Forecast {
   _count: { items: number };
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  wholesalePercent: number;
-  retailPercent: number;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  unitPrice: number;
-  uom: string;
-}
-
-const statusVariant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary",
-  SUBMITTED: "default",
-  APPROVED: "default",
-  REJECTED: "destructive",
-};
-
 export function ForecastList({
   initialForecasts,
-  customers,
-  products,
 }: {
   initialForecasts: Forecast[];
-  customers: Customer[];
-  products: Product[];
 }) {
   const [forecasts, setForecasts] = useState(initialForecasts);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [builderOpen, setBuilderOpen] = useState(false);
-  const [selectedForecast, setSelectedForecast] = useState<Forecast | null>(null);
 
   const filtered = forecasts.filter((f) => {
     const matchesSearch =
@@ -83,22 +52,6 @@ export function ForecastList({
     const matchesStatus = statusFilter === "all" || f.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  async function handleCreate(data: unknown) {
-    const res = await fetch("/api/forecasts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      setForecasts((prev) => [created, ...prev]);
-      toast.success("Forecast created");
-      setBuilderOpen(false);
-    } else {
-      toast.error("Failed to create forecast");
-    }
-  }
 
   async function handleStatusChange(id: string, status: string) {
     const res = await fetch(`/api/forecasts/${id}`, {
@@ -176,7 +129,7 @@ export function ForecastList({
                 <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => setBuilderOpen(true)}>
+            <Button onClick={() => window.open("/forecast/new", "_blank")}>
               <Plus className="h-4 w-4 mr-2" />
               New Forecast
             </Button>
@@ -232,7 +185,7 @@ export function ForecastList({
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => setSelectedForecast(f)}
+                          title="View forecast"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
@@ -254,20 +207,6 @@ export function ForecastList({
         </CardContent>
       </Card>
 
-      {/* New forecast builder dialog */}
-      <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-w-[97vw] w-[97vw] max-h-[92vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-xl">New Forecast</DialogTitle>
-          </DialogHeader>
-          <ForecastBuilder
-            customers={customers}
-            products={products}
-            onSave={handleCreate}
-            onCancel={() => setBuilderOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -134,16 +134,19 @@ model Contact {
 // ─── Product / Item Master ───────────────────────────────────────────────────
 
 model Product {
-  id          String   @id @default(cuid())
-  sku         String   @unique
-  name        String
-  description String?
-  category    String?
-  unitPrice   Float
-  uom         String   @default("Each")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  sku            String   @unique
+  name           String
+  description    String?
+  category       String?
+  unitPrice      Float
+  uom            String   @default("Each")
+  pricePerGallon Float?
+  gallonsPerCase Float?
+  litersPerCase  Float?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   forecastItems ForecastItem[]
   revenueItems  RevenueItem[]

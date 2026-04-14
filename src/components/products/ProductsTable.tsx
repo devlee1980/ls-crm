@@ -32,6 +32,9 @@ interface Product {
   category: string | null;
   unitPrice: number;
   uom: string;
+  pricePerGallon: number | null;
+  gallonsPerCase: number | null;
+  litersPerCase: number | null;
   isActive: boolean;
   _count: { forecastItems: number };
 }
