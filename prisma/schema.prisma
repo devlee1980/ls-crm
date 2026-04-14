@@ -15,6 +15,7 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(REP)
+  division  Division?
   region    String?
   avatarUrl String?
 
@@ -40,6 +41,11 @@ enum UserRole {
   ADMIN
   MANAGER
   REP
+}
+
+enum Division {
+  LS_US
+  LS_CANADA
 }
 
 // ─── Customer ────────────────────────────────────────────────────────────────
