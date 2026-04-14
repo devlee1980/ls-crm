@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { sendEmail, getManagerEmails } from "@/lib/resend";
+import { actionItemCreatedEmail } from "@/lib/email-templates";
 
 const schema = z.object({
   customerId: z.string().optional().nullable(),
@@ -59,6 +61,15 @@ export async function POST(req: Request) {
       assignedTo: { select: { id: true, name: true } },
     },
   });
+
+  // Fire-and-forget — don't block the response
+  getManagerEmails().then((to) => {
+    const { subject, html } = actionItemCreatedEmail({
+      ...item,
+      dueDate: item.dueDate ? item.dueDate.toISOString() : null,
+    });
+    return sendEmail({ from: "action@ls-nexus.com", to, subject, html });
+  }).catch((err) => console.error("[action-items] email error:", err));
 
   return NextResponse.json(item, { status: 201 });
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendEmail, getManagerEmails } from "@/lib/resend";
+import { dealCreatedEmail } from "@/lib/email-templates";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -55,6 +57,15 @@ export async function POST(req: Request) {
       assignedRep: { select: { id: true, name: true } },
     },
   });
+
+  // Fire-and-forget — don't block the response
+  getManagerEmails().then((to) => {
+    const { subject, html } = dealCreatedEmail({
+      ...deal,
+      expectedClose: deal.expectedClose ? deal.expectedClose.toISOString() : null,
+    });
+    return sendEmail({ from: "info@ls-nexus.com", to, subject, html });
+  }).catch((err) => console.error("[pipeline] email error:", err));
 
   return NextResponse.json(deal, { status: 201 });
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendEmail, getManagerEmails } from "@/lib/resend";
+import { dealStageUpdatedEmail } from "@/lib/email-templates";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,6 +31,11 @@ export async function PUT(req: Request, { params }: Params) {
   const body = await req.json();
   const { title, customerId, assignedRepId, stage, value, probability, expectedClose, notes } = body;
 
+  // Fetch current stage before update to detect changes
+  const current = stage !== undefined
+    ? await prisma.pipelineDeal.findUnique({ where: { id }, select: { stage: true } })
+    : null;
+
   const deal = await prisma.pipelineDeal.update({
     where: { id },
     data: {
@@ -46,6 +53,19 @@ export async function PUT(req: Request, { params }: Params) {
       assignedRep: { select: { id: true, name: true } },
     },
   });
+
+  if (current && current.stage !== deal.stage) {
+    getManagerEmails().then((to) => {
+      const { subject, html } = dealStageUpdatedEmail(
+        {
+          ...deal,
+          expectedClose: deal.expectedClose ? deal.expectedClose.toISOString() : null,
+        },
+        current.stage
+      );
+      return sendEmail({ from: "info@ls-nexus.com", to, subject, html });
+    }).catch((err) => console.error("[pipeline] stage email error:", err));
+  }
 
   return NextResponse.json(deal);
 }

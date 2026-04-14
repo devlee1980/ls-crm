@@ -215,10 +215,8 @@ function DealCard({
         <div className="flex items-start justify-between gap-1 mb-1.5">
           <p className="font-medium text-xs leading-snug line-clamp-2 flex-1">{deal.title}</p>
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 text-muted-foreground">
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
+            <DropdownMenuTrigger render={<Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 text-muted-foreground" />}>
+              <MoreHorizontal className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={() => onEdit(deal)}>
