@@ -21,7 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus, Search, TrendingUp, ExternalLink, Trash2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { toast } from "sonner";
@@ -255,22 +254,20 @@ export function ForecastList({
         </CardContent>
       </Card>
 
-      {/* New forecast builder sheet */}
-      <Sheet open={builderOpen} onOpenChange={setBuilderOpen}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>New Forecast</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">
-            <ForecastBuilder
-              customers={customers}
-              products={products}
-              onSave={handleCreate}
-              onCancel={() => setBuilderOpen(false)}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* New forecast builder dialog */}
+      <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New Forecast</DialogTitle>
+          </DialogHeader>
+          <ForecastBuilder
+            customers={customers}
+            products={products}
+            onSave={handleCreate}
+            onCancel={() => setBuilderOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
