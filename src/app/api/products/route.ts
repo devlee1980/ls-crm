@@ -13,6 +13,7 @@ const productSchema = z.object({
   pricePerGallon: z.number().nonnegative().optional().nullable(),
   gallonsPerCase: z.number().nonnegative().optional().nullable(),
   litersPerCase: z.number().nonnegative().optional().nullable(),
+  market: z.enum(["US", "Canada", "Both"]).default("US"),
   isActive: z.boolean().default(true),
 });
 

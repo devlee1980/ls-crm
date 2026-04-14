@@ -23,6 +23,7 @@ interface ProductData {
   pricePerGallon?: number | null;
   gallonsPerCase?: number | null;
   litersPerCase?: number | null;
+  market?: string;
   isActive?: boolean;
 }
 
@@ -77,6 +78,7 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     pricePerGallon: initialData?.pricePerGallon?.toString() ?? "",
     gallonsPerCase: initialData?.gallonsPerCase?.toString() ?? "",
     litersPerCase: initialData?.litersPerCase?.toString() ?? "",
+    market: initialData?.market ?? "US",
     isActive: initialData?.isActive ?? true,
   });
 
@@ -132,12 +134,13 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
       pricePerGallon: ppg,
       gallonsPerCase: gpc,
       litersPerCase: lpc,
+      market: form.market,
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="sku">SKU *</Label>
           <Input
@@ -167,6 +170,20 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="market">Market *</Label>
+          <Select value={form.market} onValueChange={(v) => v && setForm((f) => ({ ...f, market: v }))}>
+            <SelectTrigger id="market">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="US">LS-US</SelectItem>
+              <SelectItem value="Canada">LS-Canada</SelectItem>
+              <SelectItem value="Both">Both (US &amp; Canada)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Market this item is sold in</p>
         </div>
       </div>
 
@@ -213,13 +230,22 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               placeholder="0.00"
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Selling price per {form.uom}
+            </p>
           </div>
         )}
       </div>
 
       {/* Volume pricing — shown for all UOMs so reps can always fill in gallon rates */}
       <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
-        <p className="text-sm font-semibold">Volume Pricing</p>
+        <div>
+          <p className="text-sm font-semibold">Volume Pricing</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Enter the gallon rate and volume to automatically calculate the{" "}
+            {isVolumeBased ? form.uom : "unit"} selling price.
+          </p>
+        </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
@@ -233,13 +259,11 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => setForm((f) => ({ ...f, pricePerGallon: e.target.value }))}
               placeholder="0.0000"
             />
+            <p className="text-xs text-muted-foreground">US base rate per gallon</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="gallonsPerCase">
-              Gals / {isVolumeBased ? form.uom : "Unit"}{" "}
-              {isVolumeBased && (
-                <span className="text-muted-foreground font-normal">(auto)</span>
-              )}
+              Gals / {isVolumeBased ? form.uom : "Unit"}
             </Label>
             <Input
               id="gallonsPerCase"
@@ -250,11 +274,16 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => handleGallonsChange(e.target.value)}
               placeholder="0.00"
             />
+            <p className="text-xs text-muted-foreground">
+              {isVolumeBased
+                ? "US gallons per unit — auto-filled from UOM"
+                : "US gallons contained in one unit"}
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="litersPerCase">
               Liters / {isVolumeBased ? form.uom : "Unit"}{" "}
-              <span className="text-muted-foreground font-normal">(CA)</span>
+              <span className="text-muted-foreground font-normal">(Canada)</span>
             </Label>
             <Input
               id="litersPerCase"
@@ -265,33 +294,41 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
               onChange={(e) => setForm((f) => ({ ...f, litersPerCase: e.target.value }))}
               placeholder="0.0000"
             />
+            <p className="text-xs text-muted-foreground">
+              Liters per unit — auto-converted from gallons
+            </p>
           </div>
         </div>
 
         {(usUnitPrice !== null || canadaUnitPrice !== null) && (
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
-            {usUnitPrice !== null && (
-              <div className="space-y-0.5">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                  US Price / {form.uom}
-                </p>
-                <p className="text-base font-semibold">${usUnitPrice.toFixed(2)}</p>
-                <p className="text-muted-foreground text-xs">
-                  ${pricePerGallon.toFixed(4)}/gal × {gallonsVal} gal
-                </p>
-              </div>
-            )}
-            {canadaUnitPrice !== null && (
-              <div className="space-y-0.5">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                  Canada Price / {form.uom}
-                </p>
-                <p className="text-base font-semibold">${canadaUnitPrice.toFixed(2)}</p>
-                <p className="text-muted-foreground text-xs">
-                  ${pricePerLiter.toFixed(4)}/L × {litersVal} L
-                </p>
-              </div>
-            )}
+          <div className="space-y-1.5 pt-2 border-t">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+              Computed Unit Price
+            </p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {usUnitPrice !== null && (
+                <div className="space-y-0.5">
+                  <p className="text-muted-foreground text-xs">
+                    US — per {form.uom}
+                  </p>
+                  <p className="text-base font-semibold">${usUnitPrice.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">
+                    ${pricePerGallon.toFixed(4)}/gal × {gallonsVal} gal
+                  </p>
+                </div>
+              )}
+              {canadaUnitPrice !== null && (
+                <div className="space-y-0.5">
+                  <p className="text-muted-foreground text-xs">
+                    Canada — per {form.uom}
+                  </p>
+                  <p className="text-base font-semibold">${canadaUnitPrice.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">
+                    ${pricePerLiter.toFixed(4)}/L × {litersVal} L
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

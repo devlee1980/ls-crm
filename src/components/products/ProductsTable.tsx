@@ -35,6 +35,7 @@ interface Product {
   pricePerGallon: number | null;
   gallonsPerCase: number | null;
   litersPerCase: number | null;
+  market: string;
   isActive: boolean;
   _count: { forecastItems: number };
 }
@@ -123,6 +124,7 @@ export function ProductsTable({ initialProducts }: { initialProducts: Product[] 
           <TableHeader>
             <TableRow>
               <TableHead>SKU</TableHead>
+              <TableHead>Market</TableHead>
               <TableHead>Product Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Unit Price</TableHead>
@@ -135,7 +137,7 @@ export function ProductsTable({ initialProducts }: { initialProducts: Product[] 
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                   <Package className="h-8 w-8 mx-auto mb-2 opacity-40" />
                   {search ? "No products match your search" : "No products yet. Add your first product."}
                 </TableCell>
@@ -144,6 +146,24 @@ export function ProductsTable({ initialProducts }: { initialProducts: Product[] 
               filtered.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={
+                        product.market === "Canada"
+                          ? "border-red-300 text-red-700 bg-red-50"
+                          : product.market === "Both"
+                          ? "border-purple-300 text-purple-700 bg-purple-50"
+                          : "border-blue-300 text-blue-700 bg-blue-50"
+                      }
+                    >
+                      {product.market === "US"
+                        ? "LS-US"
+                        : product.market === "Canada"
+                        ? "LS-Canada"
+                        : "Both"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">{product.name}</p>
