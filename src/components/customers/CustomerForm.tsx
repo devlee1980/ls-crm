@@ -109,7 +109,7 @@ export function CustomerForm({
             id="accountNumber"
             value={form.accountNumber}
             onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))}
-            placeholder="ACC-001"
+            placeholder="Optional — leave blank to auto-assign (ACC-001, …)"
           />
         </div>
 

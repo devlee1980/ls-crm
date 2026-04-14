@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { sendEmail, getManagerEmails } from "@/lib/resend";
-import { actionItemCreatedEmail } from "@/lib/email-templates";
+import { sendEmail, getManagerEmails, getAssigneeEmail, getAssignmentRecipients } from "@/lib/resend";
+import { actionItemCreatedEmail, actionItemAssignedEmail } from "@/lib/email-templates";
 import { shouldFilterByDivision } from "@/lib/division";
 
 const schema = z.object({
@@ -75,13 +75,26 @@ export async function POST(req: Request) {
   });
 
   // Fire-and-forget — don't block the response
+  const itemData = {
+    ...item,
+    dueDate: item.dueDate ? item.dueDate.toISOString() : null,
+  };
+
+  // 1. Notify managers/admins about the new action item
   getManagerEmails().then((to) => {
-    const { subject, html } = actionItemCreatedEmail({
-      ...item,
-      dueDate: item.dueDate ? item.dueDate.toISOString() : null,
-    });
+    const { subject, html } = actionItemCreatedEmail(itemData);
     return sendEmail({ from: "action@ls-nexus.com", to, subject, html });
-  }).catch((err) => console.error("[action-items] email error:", err));
+  }).catch((err) => console.error("[action-items] manager email error:", err));
+
+  // 2. Notify the assignee + always CC Lee.McDuffie@lifescientific.com
+  if (item.assignedToId) {
+    getAssigneeEmail(item.assignedToId).then((assigneeEmail) => {
+      const to = getAssignmentRecipients(assigneeEmail);
+      const assigneeName = item.assignedTo?.name ?? "Team";
+      const { subject, html } = actionItemAssignedEmail(itemData, assigneeName);
+      return sendEmail({ from: "action@ls-nexus.com", to, subject, html });
+    }).catch((err) => console.error("[action-items] assignee email error:", err));
+  }
 
   return NextResponse.json(item, { status: 201 });
 }

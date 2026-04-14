@@ -172,6 +172,35 @@ export function actionItemCreatedEmail(item: ActionItemEmailData): { subject: st
   return { subject, html: baseTemplate(subject, body) };
 }
 
+// ─── Action Item: Assigned To You ────────────────────────────────────────────
+
+export function actionItemAssignedEmail(
+  item: ActionItemEmailData,
+  assigneeName: string
+): { subject: string; html: string } {
+  const subject = `You've been assigned: ${item.title}`;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const itemUrl = `${appUrl}/action-items`;
+
+  const body = `
+    ${heading("Action Item Assigned to You")}
+    ${subheading(`Hi ${assigneeName}, a new action item has been assigned to you.`)}
+    <table cellpadding="0" cellspacing="0" width="100%">
+      ${field("Title", item.title)}
+      ${field("Priority", badge(item.priority))}
+      ${field("Status", badge(item.status))}
+      ${field("Customer", item.customer?.name ?? "—")}
+      ${field("Due Date", item.dueDate ? new Date(item.dueDate).toLocaleDateString() : "—")}
+      ${item.description ? field("Description", item.description) : ""}
+    </table>
+    ${divider()}
+    <a href="${itemUrl}" style="display:inline-block;padding:10px 20px;background:${ACCENT_COLOR};color:#ffffff;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;">View My Action Items</a>
+  `;
+
+  return { subject, html: baseTemplate(subject, body) };
+}
+
 // ─── Action Items: Weekly Digest ──────────────────────────────────────────────
 
 export function actionItemsDigestEmail(items: ActionItemEmailData[]): { subject: string; html: string } {

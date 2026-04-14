@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  isBlankAccountNumber,
+  normalizeAccountNumber,
+  nextSequentialAccountNumber,
+} from "@/lib/customer-account-number";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -60,7 +66,41 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const customer = await prisma.customer.update({ where: { id }, data: parsed.data });
+  const data = { ...parsed.data };
+
+  const clearedAccount =
+    "accountNumber" in parsed.data && isBlankAccountNumber(parsed.data.accountNumber);
+  if ("accountNumber" in parsed.data) {
+    if (isBlankAccountNumber(parsed.data.accountNumber)) {
+      data.accountNumber = await nextSequentialAccountNumber();
+    } else {
+      data.accountNumber = normalizeAccountNumber(parsed.data.accountNumber);
+    }
+  }
+
+  const maxAttempts = clearedAccount ? 5 : 1;
+  let customer;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      customer = await prisma.customer.update({ where: { id }, data });
+      break;
+    } catch (e) {
+      const dupAccount =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        Array.isArray(e.meta?.target) &&
+        (e.meta.target as string[]).includes("accountNumber");
+      if (clearedAccount && dupAccount && attempt < maxAttempts - 1) {
+        data.accountNumber = await nextSequentialAccountNumber();
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  if (!customer) {
+    return NextResponse.json({ error: "Failed to update customer" }, { status: 500 });
+  }
   return NextResponse.json(customer);
 }
 

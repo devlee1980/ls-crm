@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { getDivisionFilter } from "@/lib/division";
+import {
+  isBlankAccountNumber,
+  normalizeAccountNumber,
+  nextSequentialAccountNumber,
+} from "@/lib/customer-account-number";
 
 const customerSchema = z.object({
   name: z.string().min(1),
@@ -73,8 +79,41 @@ export async function POST(req: Request) {
   // ADMIN can set division explicitly from the form; all others get their own division
   const division = role === "ADMIN" ? (parsed.data.division ?? null) : (sessionDivision ?? null);
 
-  const customer = await prisma.customer.create({
-    data: { ...parsed.data, division: division as "LS_US" | "LS_CANADA" | null },
-  });
+  const { accountNumber: rawAccountNumber, ...rest } = parsed.data;
+  const userSuppliedAccount = !isBlankAccountNumber(rawAccountNumber);
+  let accountNumber = normalizeAccountNumber(rawAccountNumber);
+  if (accountNumber === null) {
+    accountNumber = await nextSequentialAccountNumber();
+  }
+
+  const maxAttempts = userSuppliedAccount ? 1 : 5;
+  let customer;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      customer = await prisma.customer.create({
+        data: {
+          ...rest,
+          accountNumber,
+          division: division as "LS_US" | "LS_CANADA" | null,
+        },
+      });
+      break;
+    } catch (e) {
+      const dupAccount =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        Array.isArray(e.meta?.target) &&
+        (e.meta.target as string[]).includes("accountNumber");
+      if (!userSuppliedAccount && dupAccount && attempt < maxAttempts - 1) {
+        accountNumber = await nextSequentialAccountNumber();
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  if (!customer) {
+    return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
+  }
   return NextResponse.json(customer, { status: 201 });
 }

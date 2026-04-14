@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { sendEmail, getAssigneeEmail, getAssignmentRecipients } from "@/lib/resend";
+import { actionItemAssignedEmail } from "@/lib/email-templates";
 
 const patchSchema = z.object({
   title: z.string().min(1).optional(),
@@ -26,6 +28,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { dueDate, ...rest } = parsed.data;
 
+  // Capture old assignee before update to detect re-assignment
+  const before = await prisma.actionItem.findUnique({
+    where: { id },
+    select: { assignedToId: true },
+  });
+
   const completedAt =
     rest.status === "DONE" ? new Date() : rest.status ? null : undefined;
 
@@ -41,6 +49,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       assignedTo: { select: { id: true, name: true } },
     },
   });
+
+  // If assignee changed, notify the new assignee + Lee.McDuffie@lifescientific.com
+  const assigneeChanged =
+    rest.assignedToId !== undefined && rest.assignedToId !== before?.assignedToId;
+
+  if (assigneeChanged && item.assignedToId) {
+    const itemData = {
+      ...item,
+      dueDate: item.dueDate ? item.dueDate.toISOString() : null,
+    };
+    getAssigneeEmail(item.assignedToId).then((assigneeEmail) => {
+      const to = getAssignmentRecipients(assigneeEmail);
+      const assigneeName = item.assignedTo?.name ?? "Team";
+      const { subject, html } = actionItemAssignedEmail(itemData, assigneeName);
+      return sendEmail({ from: "action@ls-nexus.com", to, subject, html });
+    }).catch((err) => console.error("[action-items] re-assign email error:", err));
+  }
 
   return NextResponse.json(item);
 }
