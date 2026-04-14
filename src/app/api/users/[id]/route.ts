@@ -107,6 +107,30 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
     );
   }
 
-  await prisma.user.delete({ where: { id } });
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Unassign from customers and action items (nullable FK — set to null)
+      await tx.customer.updateMany({ where: { assignedRepId: id }, data: { assignedRepId: null } });
+      await tx.revenueRecord.updateMany({ where: { repId: id }, data: { repId: null } });
+      await tx.actionItem.updateMany({ where: { assignedToId: id }, data: { assignedToId: null } });
+
+      // Forecasts require a repId (non-nullable) — delete them along with their items
+      const forecasts = await tx.forecast.findMany({ where: { repId: id }, select: { id: true } });
+      const forecastIds = forecasts.map((f) => f.id);
+      if (forecastIds.length > 0) {
+        await tx.forecastItem.deleteMany({ where: { forecastId: { in: forecastIds } } });
+        await tx.forecast.deleteMany({ where: { id: { in: forecastIds } } });
+      }
+
+      await tx.user.delete({ where: { id } });
+    });
+  } catch (err) {
+    console.error("Failed to delete user:", err);
+    return NextResponse.json(
+      { error: "Failed to delete user. Please try again." },
+      { status: 500 }
+    );
+  }
+
   return NextResponse.json({ success: true });
 }

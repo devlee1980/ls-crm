@@ -14,7 +14,7 @@ const s3Client = new S3Client({
   },
 });
 
-const BUCKET = process.env.AWS_S3_BUCKET_NAME ?? "ls-nexus-attachments";
+const BUCKET = process.env.AWS_S3_BUCKET_NAME ?? "ls-nexus-crm";
 
 export async function uploadToS3(
   key: string,

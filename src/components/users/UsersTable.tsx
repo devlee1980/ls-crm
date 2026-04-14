@@ -124,14 +124,20 @@ export function UsersTable({ initialUsers, currentUserId }: UsersTableProps) {
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    const res = await fetch(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json();
-      toast.error(data.error ?? "Failed to delete user.");
-    } else {
+    try {
+      const res = await fetch(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const text = await res.text();
+        let message = "Failed to delete user.";
+        try { message = JSON.parse(text)?.error ?? message; } catch { /* non-JSON error */ }
+        toast.error(message);
+        return;
+      }
       toast.success(`${deleteTarget.name} has been removed.`);
       setDeleteTarget(null);
       refresh();
+    } catch {
+      toast.error("Network error. Please try again.");
     }
   }
 
