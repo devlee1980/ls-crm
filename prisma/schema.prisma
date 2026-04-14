@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(REP)
+  region    String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers      Customer[]
+  forecasts      Forecast[]
+  actionItems    ActionItem[]
+  revenueRecords RevenueRecord[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  REP
+}
+
+// ─── Customer ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id               String         @id @default(cuid())
+  name             String
+  accountNumber    String?        @unique
+  industry         String?
+  type             CustomerType   @default(DISTRIBUTOR)
+  wholesalePercent Float          @default(0)
+  retailPercent    Float          @default(100)
+  rating           Int            @default(0)
+  status           CustomerStatus @default(ACTIVE)
+  notes            String?
+  website          String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  assignedRepId String?
+  assignedRep   User?   @relation(fields: [assignedRepId], references: [id])
+
+  locations      CustomerLocation[]
+  contacts       Contact[]
+  actionItems    ActionItem[]
+  forecasts      Forecast[]
+  revenueRecords RevenueRecord[]
+  attachments    Attachment[]
+
+  @@map("customers")
+}
+
+enum CustomerType {
+  DISTRIBUTOR
+  RETAILER
+  DIRECT
+  OTHER
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+}
+
+model CustomerLocation {
+  id        String   @id @default(cuid())
+  customerId String
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label     String   @default("Main")
+  address1  String
+  address2  String?
+  city      String
+  state     String
+  zip       String
+  country   String   @default("US")
+  phone     String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_locations")
+}
+
+model Contact {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  firstName     String
+  lastName      String
+  title         String?
+  phone         String?
+  email         String?
+  isPrimary     Boolean  @default(false)
+  decisionMaker Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("contacts")
+}
+
+// ─── Product / Item Master ───────────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  description String?
+  category    String?
+  unitPrice   Float
+  uom         String   @default("Each")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  forecastItems ForecastItem[]
+  revenueItems  RevenueItem[]
+  attachments   Attachment[]
+
+  @@map("products")
+}
+
+// ─── Forecasting ─────────────────────────────────────────────────────────────
+
+model Forecast {
+  id          String         @id @default(cuid())
+  customerId  String
+  customer    Customer       @relation(fields: [customerId], references: [id])
+  repId       String
+  rep         User           @relation(fields: [repId], references: [id])
+  period      String
+  startDate   DateTime
+  endDate     DateTime
+  status      ForecastStatus @default(DRAFT)
+  notes       String?
+  totalAmount Float          @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  items ForecastItem[]
+
+  @@map("forecasts")
+}
+
+enum ForecastStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model ForecastItem {
+  id               String   @id @default(cuid())
+  forecastId       String
+  forecast         Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  quantity         Float
+  unitPrice        Float
+  wholesalePercent Float    @default(0)
+  retailPercent    Float    @default(100)
+  lineTotal        Float
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("forecast_items")
+}
+
+// ─── Revenue ─────────────────────────────────────────────────────────────────
+
+model RevenueRecord {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  repId       String?
+  rep         User?    @relation(fields: [repId], references: [id])
+  period      String
+  date        DateTime
+  totalAmount Float
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items RevenueItem[]
+
+  @@map("revenue_records")
+}
+
+model RevenueItem {
+  id              String        @id @default(cuid())
+  revenueRecordId String
+  revenueRecord   RevenueRecord @relation(fields: [revenueRecordId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  quantity        Float
+  unitPrice       Float
+  lineTotal       Float
+  createdAt       DateTime      @default(now())
+
+  @@map("revenue_items")
+}
+
+// ─── Action Items ─────────────────────────────────────────────────────────────
+
+model ActionItem {
+  id           String           @id @default(cuid())
+  customerId   String?
+  customer     Customer?        @relation(fields: [customerId], references: [id])
+  assignedToId String?
+  assignedTo   User?            @relation(fields: [assignedToId], references: [id])
+  title        String
+  description  String?
+  priority     ActionPriority   @default(MEDIUM)
+  status       ActionItemStatus @default(TODO)
+  dueDate      DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("action_items")
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ActionItemStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+// ─── Attachments (S3) ────────────────────────────────────────────────────────
+
+model Attachment {
+  id         String    @id @default(cuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id])
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  s3Key      String
+  s3Url      String
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@map("attachments")
+}
