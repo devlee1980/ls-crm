@@ -66,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             isActive: true,
             loginAttempts: true,
             lockedUntil: true,
+            sessionTimeoutMinutes: true,
           },
         });
 
@@ -114,6 +115,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           division: user.division,
           image: user.avatarUrl,
+          sessionTimeoutMinutes: user.sessionTimeoutMinutes,
         };
       },
     }),
@@ -124,6 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.division = (user as { division?: string }).division;
+        token.sessionTimeoutMinutes = (user as { sessionTimeoutMinutes?: number }).sessionTimeoutMinutes ?? 5;
       }
       return token;
     },
@@ -132,6 +135,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.division = token.division as string | undefined;
+        session.user.sessionTimeoutMinutes = (token.sessionTimeoutMinutes as number | undefined) ?? 5;
       }
       return session;
     },

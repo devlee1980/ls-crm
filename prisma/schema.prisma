@@ -19,9 +19,10 @@ model User {
   region    String?
   avatarUrl String?
 
-  isActive      Boolean   @default(true)
-  loginAttempts Int       @default(0)
-  lockedUntil   DateTime?
+  isActive               Boolean   @default(true)
+  loginAttempts          Int       @default(0)
+  lockedUntil            DateTime?
+  sessionTimeoutMinutes  Int       @default(5)
 
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?

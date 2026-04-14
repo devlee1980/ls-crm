@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -9,11 +10,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { signOut, useSession } from "next-auth/react";
-import { Bell, Settings, CalendarDays, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bell, Settings, CalendarDays, Menu, Clock } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import { toast } from "sonner";
 
 const DIVISION_LABELS: Record<string, string> = {
   LS_US: "LS US",
@@ -25,16 +42,31 @@ const DIVISION_COLORS: Record<string, string> = {
   LS_CANADA: "bg-red-50 text-red-700 border border-red-200",
 };
 
+const TIMEOUT_OPTIONS = [
+  { value: 5,   label: "5 minutes (default)" },
+  { value: 15,  label: "15 minutes" },
+  { value: 30,  label: "30 minutes" },
+  { value: 60,  label: "1 hour" },
+  { value: 240, label: "4 hours" },
+  { value: 480, label: "8 hours" },
+];
+
 interface HeaderProps {
   title: string;
   subtitle?: string;
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const { toggle } = useSidebar();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const user = session?.user;
-  const extUser = user as { role?: string; division?: string } | undefined;
+  const extUser = user as { role?: string; division?: string; sessionTimeoutMinutes?: number } | undefined;
+  const currentTimeout = extUser?.sessionTimeoutMinutes ?? 5;
+  const [selectedTimeout, setSelectedTimeout] = useState(currentTimeout);
+
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
     : "U";
@@ -48,10 +80,28 @@ export function Header({ title, subtitle }: HeaderProps) {
 
   const division = extUser?.division;
 
+  async function handleSaveSettings() {
+    setSaving(true);
+    const res = await fetch("/api/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionTimeoutMinutes: selectedTimeout }),
+    });
+    setSaving(false);
+
+    if (res.ok) {
+      // Update the client-side session so the watcher picks up the new value
+      await update({ sessionTimeoutMinutes: selectedTimeout });
+      toast.success(`Session timeout set to ${TIMEOUT_OPTIONS.find((o) => o.value === selectedTimeout)?.label}`);
+      setSettingsOpen(false);
+    } else {
+      toast.error("Failed to save settings");
+    }
+  }
+
   return (
     <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
-        {/* Hamburger — mobile only */}
         <Button
           variant="ghost"
           size="icon"
@@ -68,13 +118,11 @@ export function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Today's date */}
         <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
           <span>{today}</span>
         </div>
 
-        {/* Division badge */}
         {division && DIVISION_LABELS[division] && (
           <span className={`hidden md:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${DIVISION_COLORS[division]}`}>
             {DIVISION_LABELS[division]}
@@ -113,7 +161,7 @@ export function Header({ title, subtitle }: HeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
@@ -127,6 +175,55 @@ export function Header({ title, subtitle }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Settings dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>
+              Manage your personal session preferences.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Session Timeout
+              </Label>
+              <Select
+                value={String(selectedTimeout)}
+                onValueChange={(v) => v && setSelectedTimeout(parseInt(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEOUT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                You will be automatically logged out after this period of inactivity.
+                A warning appears 1 minute before.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setSettingsOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSettings} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

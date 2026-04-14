@@ -6,12 +6,14 @@ declare module "next-auth" {
       id: string;
       role: string;
       division?: string | null;
+      sessionTimeoutMinutes: number;
     };
   }
 
   interface User {
     role?: string;
     division?: string | null;
+    sessionTimeoutMinutes?: number;
   }
 }
 
@@ -20,5 +22,6 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     division?: string | null;
+    sessionTimeoutMinutes?: number;
   }
 }
