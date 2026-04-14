@@ -14,6 +14,7 @@ import {
   UserCog,
   Kanban,
   X,
+  BarChart2,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,22 @@ export function Sidebar() {
                 <UserCog className="h-4 w-4 shrink-0" />
                 <span className="flex-1">Users</span>
                 {pathname.startsWith("/users") && (
+                  <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                )}
+              </Link>
+              <Link
+                href="/analytics"
+                onClick={close}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                  pathname.startsWith("/analytics")
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                )}
+              >
+                <BarChart2 className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Analytics</span>
+                {pathname.startsWith("/analytics") && (
                   <ChevronRight className="h-3.5 w-3.5 opacity-60" />
                 )}
               </Link>

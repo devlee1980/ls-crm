@@ -27,7 +27,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Search, Users, ExternalLink } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Search, Users, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
 import { StarRating } from "@/components/ui/StarRating";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
@@ -74,6 +91,8 @@ export function CustomersTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = customers.filter((c) => {
     const matchesSearch =
@@ -83,6 +102,20 @@ export function CustomersTable({
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  async function handleDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
+    const res = await fetch(`/api/customers/${deleteId}`, { method: "DELETE" });
+    setDeleting(false);
+    if (res.ok) {
+      setCustomers((prev) => prev.filter((c) => c.id !== deleteId));
+      toast.success("Customer deleted");
+    } else {
+      toast.error("Failed to delete customer");
+    }
+    setDeleteId(null);
+  }
 
   async function handleCreate(data: Partial<Customer>) {
     const res = await fetch("/api/customers", {
@@ -190,14 +223,37 @@ export function CustomersTable({
                     {c.assignedRep?.name ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <Link
-                      href={`/customers/${c.id}`}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Button size="icon" variant="ghost">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          render={
+                            <Link href={`/customers/${c.id}`} className="flex items-center gap-2">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              View
+                            </Link>
+                          }
+                        />
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteId(c.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -220,6 +276,27 @@ export function CustomersTable({
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the customer and all associated contacts, locations, action items, and revenue records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

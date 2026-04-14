@@ -298,6 +298,25 @@ enum PipelineStage {
   LOST
 }
 
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+model PageView {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  userEmail String?
+  userRole  String?
+  path      String
+  referrer  String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([path])
+  @@map("page_views")
+}
+
 // ─── Attachments (S3) ────────────────────────────────────────────────────────
 
 model Attachment {

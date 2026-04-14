@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,16 @@ import { RevenueTab } from "./tabs/RevenueTab";
 import { ActionItemsTab } from "./tabs/ActionItemsTab";
 import { ForecastsTab } from "./tabs/ForecastsTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CustomerForm } from "./CustomerForm";
 
 interface CustomerDetailProps {
@@ -134,8 +145,11 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 export function CustomerDetail({ customer, reps, products }: CustomerDetailProps) {
+  const router = useRouter();
   const [rating, setRating] = useState(customer.rating);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [customerData, setCustomerData] = useState(customer);
 
   const totalRevenue = customer.revenueRecords.reduce((s, r) => s + r.totalAmount, 0);
@@ -152,6 +166,19 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
     } else {
       toast.error("Failed to update rating");
       setRating(customer.rating);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    const res = await fetch(`/api/customers/${customer.id}`, { method: "DELETE" });
+    setDeleting(false);
+    if (res.ok) {
+      toast.success("Customer deleted");
+      router.push("/customers");
+    } else {
+      toast.error("Failed to delete customer");
+      setDeleteOpen(false);
     }
   }
 
@@ -206,10 +233,21 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
                 </div>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-3.5 w-3.5 mr-1.5" />
-              Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete
+              </Button>
+            </div>
           </div>
 
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -321,6 +359,27 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {customerData.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the customer and all associated contacts, locations, action items, and revenue records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
