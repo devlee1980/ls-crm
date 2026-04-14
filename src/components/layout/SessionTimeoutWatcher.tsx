@@ -22,9 +22,15 @@ export function SessionTimeoutWatcher() {
   const [secondsLeft, setSecondsLeft] = useState(60);
 
   const lastActivityRef = useRef(0);
+  /** Keeps activity handler stable so the mount effect does not re-run when the warning opens (which was clearing logout/countdown timers). */
+  const showWarningRef = useRef(false);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    showWarningRef.current = showWarning;
+  }, [showWarning]);
 
   const timeoutMs = ((session?.user as { sessionTimeoutMinutes?: number })?.sessionTimeoutMinutes ?? 5) * 60_000;
 
@@ -62,9 +68,9 @@ export function SessionTimeoutWatcher() {
 
   const handleActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
-    if (showWarning) return; // don't reset while warning is shown
+    if (showWarningRef.current) return; // don't reset while warning is shown
     scheduleLogout();
-  }, [showWarning, scheduleLogout]);
+  }, [scheduleLogout]);
 
   // Mount activity listeners and start the initial timer
   useEffect(() => {
@@ -88,7 +94,7 @@ export function SessionTimeoutWatcher() {
   }, [session, scheduleLogout, handleActivity, clearTimers]);
 
   function handleStayLoggedIn() {
-    setShowWarning(false);
+    lastActivityRef.current = Date.now();
     scheduleLogout();
   }
 
