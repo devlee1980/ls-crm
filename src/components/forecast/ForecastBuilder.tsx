@@ -18,21 +18,24 @@ import { formatCurrency } from "@/lib/formatters";
 
 const LITERS_PER_GALLON = 3.78541;
 
-const PACK_SIZES = [
-  "Each",
-  "Quart",
-  "Gallon",
-  "2.5 Gal",
-  "5 Gal",
-  "Case",
-  "Case 2x2.5",
-  "Case 4x1",
-  "Drum",
-  "Tote",
-  "Tote 135 Gal",
-  "Tote 265 Gal",
-  "Pallet",
-];
+/** Known gallon volumes per pack size. null = user must enter manually. */
+const PACK_SIZE_GALLONS: Record<string, number | null> = {
+  "Each":        null,
+  "Quart":       0.25,
+  "Gallon":      1,
+  "2.5 Gal":     2.5,
+  "5 Gal":       5,
+  "Case":        null,
+  "Case 2x2.5":  5,
+  "Case 4x1":    4,
+  "Drum":        null,
+  "Tote":        null,
+  "Tote 135 Gal": 135,
+  "Tote 265 Gal": 265,
+  "Pallet":      null,
+};
+
+const PACK_SIZES = Object.keys(PACK_SIZE_GALLONS);
 
 const MONTH_COUNT = 18;
 
@@ -58,12 +61,13 @@ interface ForecastRow {
   _key: string;
   productId: string;
   packSize: string;
-  /** $/gal for US rows with volume pricing; $/L for Canada; 0 means use flatUnitPrice */
+  /** $/gal (US) or $/L (Canada) — always the per-volume rate */
   pricePerVolume: string;
-  /** gallons per unit (US) or liters per unit (Canada); 0 = not a volume product */
-  volumePerUnit: number;
-  /** fallback price per unit for non-volume products */
-  flatUnitPrice: string;
+  /**
+   * Gallons (US) or liters (Canada) per unit, derived from pack size.
+   * Editable string so user can type for generic sizes (Case, Drum, Tote, Pallet).
+   */
+  volumePerUnit: string;
   quantities: Record<string, string>; // monthKey -> qty string
 }
 
@@ -96,48 +100,47 @@ function todayYearMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function resolveVolumeFields(
-  product: Product,
-  isCanada: boolean
-): { pricePerVolume: string; volumePerUnit: number } {
+/** Derive pricePerVolume string from the product's stored gallon rate */
+function productPricePerVolume(product: Product, isCanada: boolean): string {
   const ppg = product.pricePerGallon;
-  if (!ppg) return { pricePerVolume: "", volumePerUnit: 0 };
+  if (!ppg) return "";
+  if (isCanada) return (ppg / LITERS_PER_GALLON).toFixed(4);
+  return ppg.toFixed(4);
+}
 
-  if (isCanada) {
-    const ppl = ppg / LITERS_PER_GALLON;
-    const lpc = product.litersPerCase ?? 0;
-    return {
-      pricePerVolume: ppl.toFixed(4),
-      volumePerUnit: lpc,
-    };
-  } else {
-    const gpc = product.gallonsPerCase ?? 0;
-    return {
-      pricePerVolume: ppg.toFixed(4),
-      volumePerUnit: gpc,
-    };
-  }
+/**
+ * Convert the pack-size gallon count into the correct unit for the division.
+ * Returns "" when the pack size has no known volume.
+ */
+function packSizeVolumePerUnit(packSize: string, isCanada: boolean): string {
+  const gal = PACK_SIZE_GALLONS[packSize] ?? null;
+  if (gal === null) return "";
+  return isCanada ? (gal * LITERS_PER_GALLON).toFixed(4) : gal.toString();
+}
+
+function resolveVolumeFields(product: Product, isCanada: boolean) {
+  return { pricePerVolume: productPricePerVolume(product, isCanada) };
 }
 
 function newRow(product?: Product, isCanada = false): ForecastRow {
-  const volumeFields = product ? resolveVolumeFields(product, isCanada) : { pricePerVolume: "", volumePerUnit: 0 };
+  const uom = product?.uom ?? "Each";
   return {
     _key: Math.random().toString(36).slice(2),
     productId: product?.id ?? "",
-    packSize: product?.uom ?? "Each",
-    pricePerVolume: volumeFields.pricePerVolume,
-    volumePerUnit: volumeFields.volumePerUnit,
-    flatUnitPrice: product?.unitPrice?.toString() ?? "",
+    packSize: uom,
+    pricePerVolume: product ? productPricePerVolume(product, isCanada) : "",
+    volumePerUnit: packSizeVolumePerUnit(uom, isCanada),
     quantities: {},
   };
 }
 
 /** Returns the effective per-unit price for line total calculation */
 function effectiveUnitPrice(row: ForecastRow): number {
-  if (row.volumePerUnit > 0) {
-    return (parseFloat(row.pricePerVolume) || 0) * row.volumePerUnit;
-  }
-  return parseFloat(row.flatUnitPrice) || 0;
+  const ppv = parseFloat(row.pricePerVolume) || 0;
+  const vpu = parseFloat(row.volumePerUnit) || 0;
+  if (ppv > 0 && vpu > 0) return ppv * vpu;
+  // No volume pricing — treat pricePerVolume as flat unit price
+  return ppv;
 }
 
 export function ForecastBuilder({
@@ -168,7 +171,7 @@ export function ForecastBuilder({
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r._key !== key) : prev));
   }
 
-  function updateRow(key: string, field: "productId" | "packSize" | "pricePerVolume" | "flatUnitPrice", value: string) {
+  function updateRow(key: string, field: "productId" | "packSize" | "pricePerVolume" | "volumePerUnit", value: string) {
     setRows((prev) =>
       prev.map((row) => {
         if (row._key !== key) return row;
@@ -176,12 +179,14 @@ export function ForecastBuilder({
         if (field === "productId") {
           const p = products.find((p) => p.id === value);
           if (p) {
-            const vf = resolveVolumeFields(p, isCanada);
-            updated.pricePerVolume = vf.pricePerVolume;
-            updated.volumePerUnit = vf.volumePerUnit;
-            updated.flatUnitPrice = p.unitPrice.toString();
+            updated.pricePerVolume = productPricePerVolume(p, isCanada);
             updated.packSize = p.uom;
+            updated.volumePerUnit = packSizeVolumePerUnit(p.uom, isCanada);
           }
+        }
+        if (field === "packSize") {
+          const knownVolume = packSizeVolumePerUnit(value, isCanada);
+          if (knownVolume) updated.volumePerUnit = knownVolume;
         }
         return updated;
       })
@@ -356,7 +361,11 @@ export function ForecastBuilder({
                 />
                 <th
                   className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2 text-right"
-                  style={{ left: 390, minWidth: 110 }}
+                  style={{ left: 390, minWidth: 100 }}
+                />
+                <th
+                  className="sticky z-30 bg-muted/90 border-b border-r px-3 py-2 text-right"
+                  style={{ left: 490, minWidth: 80 }}
                 />
                 {Object.entries(yearGroups).map(([year, count]) => (
                   <th
@@ -374,26 +383,32 @@ export function ForecastBuilder({
                 />
               </tr>
 
-              {/* Column labels row */}
-              <tr className="bg-muted/60">
-                <th
-                  className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                  style={{ minWidth: 280 }}
-                >
-                  Product
-                </th>
-                <th
-                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
-                  style={{ left: 280, minWidth: 110 }}
-                >
-                  Pack Size
-                </th>
-                <th
-                  className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
-                  style={{ left: 390, minWidth: 130 }}
-                >
-                  {volumeLabel}
-                </th>
+                    {/* Column labels row */}
+                  <tr className="bg-muted/60">
+                    <th
+                      className="sticky left-0 z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                      style={{ minWidth: 280 }}
+                    >
+                      Product
+                    </th>
+                    <th
+                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-left font-semibold"
+                      style={{ left: 280, minWidth: 110 }}
+                    >
+                      Pack Size
+                    </th>
+                    <th
+                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
+                      style={{ left: 390, minWidth: 100 }}
+                    >
+                      {volumeLabel}
+                    </th>
+                    <th
+                      className="sticky z-20 bg-muted/70 border-b border-r px-3 py-3 text-right font-semibold"
+                      style={{ left: 490, minWidth: 80 }}
+                    >
+                      {isCanada ? "L/Unit" : "Gal/Unit"}
+                    </th>
                 {months.map((m) => (
                   <th
                     key={m.key}
@@ -416,10 +431,9 @@ export function ForecastBuilder({
               {rows.map((row) => {
                 const rowTotal = getRowTotal(row);
                 const product = products.find((p) => p.id === row.productId);
-                const hasVolume = row.volumePerUnit > 0;
-                const computedUnitPrice = hasVolume
-                  ? (parseFloat(row.pricePerVolume) || 0) * row.volumePerUnit
-                  : null;
+                const vpu = parseFloat(row.volumePerUnit) || 0;
+                const ppv = parseFloat(row.pricePerVolume) || 0;
+                const computedUnitPrice = ppv > 0 && vpu > 0 ? ppv * vpu : null;
 
                 return (
                   <tr key={row._key} className="border-b hover:bg-muted/10 group">
@@ -448,9 +462,9 @@ export function ForecastBuilder({
                           </SelectTrigger>
                           <SelectContent className="w-[420px]">
                             {products.map((p) => {
-                              const vf = resolveVolumeFields(p, isCanada);
-                              const displayPrice = vf.pricePerVolume
-                                ? `${volumeLabel} ${parseFloat(vf.pricePerVolume).toFixed(4)}`
+                              const ppv = productPricePerVolume(p, isCanada);
+                              const displayPrice = ppv
+                                ? `${volumeLabel} ${parseFloat(ppv).toFixed(4)}`
                                 : formatCurrency(p.unitPrice);
                               return (
                                 <SelectItem key={p.id} value={p.id}>
@@ -495,39 +509,43 @@ export function ForecastBuilder({
                       </Select>
                     </td>
 
-                    {/* Price per volume or flat unit price */}
+                    {/* $/Gal or $/L */}
                     <td
                       className="sticky z-10 bg-background border-r px-2 py-2"
-                      style={{ left: 390, minWidth: 130 }}
+                      style={{ left: 390, minWidth: 100 }}
                     >
-                      {hasVolume ? (
-                        <div className="space-y-0.5">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.0001"
-                            value={row.pricePerVolume}
-                            onChange={(e) => updateRow(row._key, "pricePerVolume", e.target.value)}
-                            className="h-9 text-xs text-right"
-                            placeholder="0.0000"
-                          />
-                          {computedUnitPrice !== null && computedUnitPrice > 0 && (
-                            <p className="text-[10px] text-muted-foreground text-right pr-1">
-                              {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
+                      <div className="space-y-0.5">
                         <Input
                           type="number"
                           min="0"
-                          step="0.01"
-                          value={row.flatUnitPrice}
-                          onChange={(e) => updateRow(row._key, "flatUnitPrice", e.target.value)}
+                          step="0.0001"
+                          value={row.pricePerVolume}
+                          onChange={(e) => updateRow(row._key, "pricePerVolume", e.target.value)}
                           className="h-9 text-xs text-right"
-                          placeholder="0.00"
+                          placeholder="0.0000"
                         />
-                      )}
+                        {computedUnitPrice !== null && computedUnitPrice > 0 && (
+                          <p className="text-[10px] text-muted-foreground text-right pr-1 whitespace-nowrap">
+                            {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Gal/Unit or L/Unit */}
+                    <td
+                      className="sticky z-10 bg-background border-r px-2 py-2"
+                      style={{ left: 490, minWidth: 80 }}
+                    >
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={row.volumePerUnit}
+                        onChange={(e) => updateRow(row._key, "volumePerUnit", e.target.value)}
+                        className="h-9 text-xs text-right"
+                        placeholder="0"
+                      />
                     </td>
 
                     {/* Monthly quantity inputs */}
@@ -568,8 +586,8 @@ export function ForecastBuilder({
               <tr className="border-t-2 bg-muted/40 font-semibold">
                 <td
                   className="sticky left-0 z-10 bg-muted/60 px-3 py-3 text-sm border-r"
-                  colSpan={3}
-                  style={{ minWidth: 520 }}
+                  colSpan={4}
+                  style={{ minWidth: 570 }}
                 >
                   Monthly Total
                 </td>
