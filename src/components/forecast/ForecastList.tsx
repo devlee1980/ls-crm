@@ -256,9 +256,9 @@ export function ForecastList({
 
       {/* New forecast builder dialog */}
       <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>New Forecast</DialogTitle>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-xl">New Forecast</DialogTitle>
           </DialogHeader>
           <ForecastBuilder
             customers={customers}

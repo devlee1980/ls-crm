@@ -157,13 +157,13 @@ export function ForecastBuilder({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-7">
       {/* Header fields */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-5">
         <div className="space-y-2 col-span-2">
-          <Label>Customer *</Label>
+          <Label className="text-sm font-medium">Customer *</Label>
           <Select value={customerId} onValueChange={(v) => v && handleCustomerChange(v)} required>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 text-sm">
               <SelectValue placeholder="Select customer" />
             </SelectTrigger>
             <SelectContent>
@@ -177,8 +177,9 @@ export function ForecastBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label>Period *</Label>
+          <Label className="text-sm font-medium">Period *</Label>
           <Input
+            className="h-11 text-sm"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             placeholder="Q1 2026, 2026, etc."
@@ -187,8 +188,9 @@ export function ForecastBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label>Start Date *</Label>
+          <Label className="text-sm font-medium">Start Date *</Label>
           <Input
+            className="h-11 text-sm"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
@@ -197,8 +199,9 @@ export function ForecastBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label>End Date *</Label>
+          <Label className="text-sm font-medium">End Date *</Label>
           <Input
+            className="h-11 text-sm"
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
@@ -207,11 +210,12 @@ export function ForecastBuilder({
         </div>
 
         <div className="space-y-2">
-          <Label>Notes</Label>
+          <Label className="text-sm font-medium">Notes</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={2}
+            rows={3}
+            className="text-sm resize-none"
             placeholder="Optional forecast notes"
           />
         </div>
@@ -221,27 +225,27 @@ export function ForecastBuilder({
 
       {/* Line items */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <Label className="text-base font-semibold">Product Line Items</Label>
-          <Button type="button" size="sm" variant="outline" onClick={addLine}>
-            <Plus className="h-3.5 w-3.5 mr-1" />
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-base font-semibold">Product Line Items</p>
+          <Button type="button" variant="outline" onClick={addLine}>
+            <Plus className="h-4 w-4 mr-2" />
             Add Product
           </Button>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {items.map((item, idx) => {
             const lineTotal = getLineTotal(item);
             return (
               <Card key={item._key} className="border">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-medium text-muted-foreground">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-semibold text-muted-foreground">
                       Line {idx + 1}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       {lineTotal > 0 && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-sm px-3 py-1">
                           {formatCurrency(lineTotal)}
                         </Badge>
                       )}
@@ -249,37 +253,41 @@ export function ForecastBuilder({
                         type="button"
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         onClick={() => removeLine(item._key)}
                         disabled={items.length === 1}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div className="space-y-1 col-span-2 sm:col-span-3">
-                      <Label className="text-xs">Product *</Label>
-                      <Select
-                        value={item.productId}
-                        onValueChange={(v) => v && updateLine(item._key, "productId", v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.sku} — {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Quantity *</Label>
+                  {/* Product selector — full width */}
+                  <div className="space-y-2 mb-4">
+                    <Label className="text-sm font-medium">Product *</Label>
+                    <Select
+                      value={item.productId}
+                      onValueChange={(v) => v && updateLine(item._key, "productId", v)}
+                    >
+                      <SelectTrigger className="h-11 text-sm">
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.sku} — {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Numeric fields — 4 columns */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Quantity *</Label>
                       <Input
+                        className="h-11 text-sm"
                         type="number"
                         min="0"
                         step="0.01"
@@ -289,9 +297,10 @@ export function ForecastBuilder({
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Unit Price ($)</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Unit Price ($)</Label>
                       <Input
+                        className="h-11 text-sm"
                         type="number"
                         min="0"
                         step="0.01"
@@ -301,16 +310,10 @@ export function ForecastBuilder({
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Line Total</Label>
-                      <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                        {formatCurrency(lineTotal)}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Wholesale %</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Wholesale %</Label>
                       <Input
+                        className="h-11 text-sm"
                         type="number"
                         min="0"
                         max="100"
@@ -319,9 +322,10 @@ export function ForecastBuilder({
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Retail %</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Retail %</Label>
                       <Input
+                        className="h-11 text-sm"
                         type="number"
                         min="0"
                         max="100"
@@ -329,6 +333,12 @@ export function ForecastBuilder({
                         onChange={(e) => updateLine(item._key, "retailPercent", e.target.value)}
                       />
                     </div>
+                  </div>
+
+                  {/* Line total — below numerics */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Line Total:</span>
+                    <span className="text-base font-semibold">{formatCurrency(lineTotal)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -340,17 +350,17 @@ export function ForecastBuilder({
       <Separator />
 
       {/* Total + submit */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Calculator className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Total Forecast:</span>
-          <span className="text-lg font-bold text-primary">{formatCurrency(grandTotal)}</span>
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-3">
+          <Calculator className="h-5 w-5 text-primary" />
+          <span className="text-base font-semibold">Total Forecast:</span>
+          <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
         </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" size="lg" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit">Save Forecast</Button>
+          <Button type="submit" size="lg">Save Forecast</Button>
         </div>
       </div>
     </form>
