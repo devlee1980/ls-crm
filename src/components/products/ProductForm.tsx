@@ -76,8 +76,8 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     unitPrice: initialData?.unitPrice?.toString() ?? "",
     uom: initialData?.uom ?? "Each",
     pricePerGallon: initialData?.pricePerGallon?.toString() ?? "",
-    gallonsPerCase: initialData?.gallonsPerCase?.toString() ?? "",
-    litersPerCase: initialData?.litersPerCase?.toString() ?? "",
+    gallonsPerCase: initialData?.gallonsPerCase?.toString() ?? "1",
+    litersPerCase: initialData?.litersPerCase?.toString() ?? LITERS_PER_GALLON.toFixed(4),
     market: initialData?.market ?? "US",
     isActive: initialData?.isActive ?? true,
   });
