@@ -40,6 +40,8 @@ const UOM_OPTIONS: { label: string; gallons: number | null }[] = [
   { label: "Each",         gallons: null },
   { label: "Case 2x2.5",  gallons: 5    },
   { label: "Case 4x1",    gallons: 4    },
+  /** 2 × 5.1 L ≈ 10.2 L — common CA registration pack */
+  { label: "Case 2×5.1L", gallons: 10.2 / LITERS_PER_GALLON },
   { label: "Case",        gallons: null },
   { label: "Pallet",      gallons: null },
   { label: "Gallon",      gallons: 1    },
@@ -67,9 +69,63 @@ function uomGallons(uom: string): number | null {
   return UOM_OPTIONS.find((u) => u.label === uom)?.gallons ?? null;
 }
 
+/** Litres per case implied by product name (Canada registrations). */
+function inferCanadaLitersFromName(name: string): number | null {
+  if (/2\s*[×x]\s*5\.1\s*L/i.test(name)) return 10.2;
+  return null;
+}
+
+function isNear(a: number, b: number, eps: number) {
+  return Math.abs(a - b) < eps;
+}
+
+function getInitialVolumeFields(
+  initialData: ProductData | null | undefined,
+  initMarket: string
+): { gallonsPerCase: string; litersPerCase: string } {
+  const storedL = initialData?.litersPerCase;
+  const storedG = initialData?.gallonsPerCase;
+  const inferred =
+    initMarket === "Canada" ? inferCanadaLitersFromName(initialData?.name ?? "") : null;
+
+  if (inferred != null && initialData) {
+    const looksLikeOneUsGalTemplate =
+      storedL != null && isNear(storedL, LITERS_PER_GALLON, 0.02);
+    const missingOrWrong =
+      storedL == null || looksLikeOneUsGalTemplate || !isNear(storedL, inferred, 0.05);
+    if (missingOrWrong) {
+      const g = inferred / LITERS_PER_GALLON;
+      return {
+        litersPerCase: String(inferred),
+        gallonsPerCase: g.toFixed(4),
+      };
+    }
+  }
+
+  if (!initialData && initMarket === "Canada") {
+    return { gallonsPerCase: "", litersPerCase: "" };
+  }
+
+  if (!initialData) {
+    return { gallonsPerCase: "1", litersPerCase: LITERS_PER_GALLON.toFixed(4) };
+  }
+
+  return {
+    gallonsPerCase:
+      storedG != null ? String(storedG) : initMarket === "Canada" ? "" : "1",
+    litersPerCase:
+      storedL != null
+        ? String(storedL)
+        : initMarket === "Canada"
+          ? ""
+          : LITERS_PER_GALLON.toFixed(4),
+  };
+}
+
 export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps) {
   const initMarket = initialData?.market ?? "US";
   const initPpg = initialData?.pricePerGallon ?? null;
+  const initVol = getInitialVolumeFields(initialData, initMarket);
 
   const [form, setForm] = useState({
     sku: initialData?.sku ?? "",
@@ -82,8 +138,8 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     pricePerLiter: initPpg != null
       ? (initPpg / LITERS_PER_GALLON).toFixed(4)
       : "",
-    gallonsPerCase: initialData?.gallonsPerCase?.toString() ?? "1",
-    litersPerCase: initialData?.litersPerCase?.toString() ?? LITERS_PER_GALLON.toFixed(4),
+    gallonsPerCase: initVol.gallonsPerCase,
+    litersPerCase: initVol.litersPerCase,
     market: initMarket,
     isActive: initialData?.isActive ?? true,
   });
@@ -108,6 +164,15 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     setForm((f) => ({ ...f, gallonsPerCase: val, litersPerCase: liters }));
   }
 
+  /** Canada: keep US-gallon fields in DB sync for APIs/forecasts that read gallonsPerCase. */
+  function handleLitersChangeCanada(val: string) {
+    const liters = parseFloat(val);
+    const gallons = !isNaN(liters) && liters > 0
+      ? (liters / LITERS_PER_GALLON).toFixed(4)
+      : "";
+    setForm((f) => ({ ...f, litersPerCase: val, gallonsPerCase: gallons }));
+  }
+
   function handlePricePerGallonChange(val: string) {
     const ppg = parseFloat(val);
     const ppl = !isNaN(ppg) && ppg > 0 ? (ppg / LITERS_PER_GALLON).toFixed(4) : "";
@@ -124,13 +189,43 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
     setForm((f) => {
       const ppg = parseFloat(f.pricePerGallon) || 0;
       const ppl = parseFloat(f.pricePerLiter) || 0;
+
+      let next = { ...f, market: v };
+
       if (v === "Canada" && ppg > 0 && !ppl) {
-        return { ...f, market: v, pricePerLiter: (ppg / LITERS_PER_GALLON).toFixed(4) };
+        next = { ...next, pricePerLiter: (ppg / LITERS_PER_GALLON).toFixed(4) };
+      } else if (v !== "Canada" && ppl > 0 && !ppg) {
+        next = { ...next, pricePerGallon: (ppl * LITERS_PER_GALLON).toFixed(4) };
       }
-      if (v !== "Canada" && ppl > 0 && !ppg) {
-        return { ...f, market: v, pricePerGallon: (ppl * LITERS_PER_GALLON).toFixed(4) };
+
+      // New products start with a 1 US gal template; clear it when switching to Canada so
+      // reps enter real litres per case (e.g. 10.2 for 2×5.1 L), not 3.7854 L.
+      if (v === "Canada" && f.market !== "Canada") {
+        const gallonsNum = parseFloat(f.gallonsPerCase);
+        const litersNum = parseFloat(f.litersPerCase);
+        const isTemplateUsVolume =
+          !Number.isNaN(gallonsNum) &&
+          Math.abs(gallonsNum - 1) < 1e-4 &&
+          !Number.isNaN(litersNum) &&
+          Math.abs(litersNum - LITERS_PER_GALLON) < 0.02;
+        if (isTemplateUsVolume) {
+          next = { ...next, gallonsPerCase: "", litersPerCase: "" };
+        }
       }
-      return { ...f, market: v };
+
+      if (v !== "Canada" && f.market === "Canada") {
+        const galEmpty = !String(f.gallonsPerCase ?? "").trim();
+        const liEmpty = !String(f.litersPerCase ?? "").trim();
+        if (galEmpty && liEmpty) {
+          next = {
+            ...next,
+            gallonsPerCase: "1",
+            litersPerCase: LITERS_PER_GALLON.toFixed(4),
+          };
+        }
+      }
+
+      return next;
     });
   }
 
@@ -153,12 +248,25 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const ppg = form.pricePerGallon ? parseFloat(form.pricePerGallon) : null;
-    const gpc = form.gallonsPerCase ? parseFloat(form.gallonsPerCase) : null;
+    const ppgRaw = form.pricePerGallon ? parseFloat(form.pricePerGallon) : null;
+    const pplRaw = form.pricePerLiter ? parseFloat(form.pricePerLiter) : null;
+    let gpc = form.gallonsPerCase ? parseFloat(form.gallonsPerCase) : null;
     const lpc = form.litersPerCase ? parseFloat(form.litersPerCase) : null;
+    let ppg = ppgRaw;
 
-    const computedUnitPrice =
-      ppg && gpc ? ppg * gpc : parseFloat(form.unitPrice);
+    const isCanadaMarket = form.market === "Canada";
+
+    let computedUnitPrice: number;
+    if (isCanadaMarket && pplRaw != null && !Number.isNaN(pplRaw) && pplRaw > 0 && lpc != null && lpc > 0) {
+      // Canada: unit price from $/L × L (do not use $/gal × gal — liters may be edited independently)
+      computedUnitPrice = pplRaw * lpc;
+      ppg = pplRaw * LITERS_PER_GALLON;
+      gpc = lpc / LITERS_PER_GALLON;
+    } else if (!isCanadaMarket && ppg != null && !Number.isNaN(ppg) && ppg > 0 && gpc != null && gpc > 0) {
+      computedUnitPrice = ppg * gpc;
+    } else {
+      computedUnitPrice = parseFloat(form.unitPrice);
+    }
 
     onSave({
       ...form,
@@ -197,7 +305,9 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
                   {u.label}
                   {u.gallons !== null && (
                     <span className="ml-2 text-muted-foreground text-xs">
-                      ({u.gallons} gal)
+                      {form.market === "Canada"
+                        ? `(${(u.gallons * LITERS_PER_GALLON).toFixed(1)} L)`
+                        : `(${u.gallons} gal)`}
                     </span>
                   )}
                 </SelectItem>
@@ -308,11 +418,11 @@ export function ProductForm({ initialData, onSave, onCancel }: ProductFormProps)
                 step="0.0001"
                 min="0"
                 value={form.litersPerCase}
-                onChange={(e) => setForm((f) => ({ ...f, litersPerCase: e.target.value }))}
+                onChange={(e) => handleLitersChangeCanada(e.target.value)}
                 placeholder="0.0000"
               />
               <p className="text-xs text-muted-foreground">
-                Liters per unit — auto-converted from gallons
+                Litres per selling unit (US-gallon equivalent is stored for system use)
               </p>
             </div>
           </div>

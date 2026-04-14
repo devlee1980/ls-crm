@@ -21,7 +21,7 @@ export function SessionTimeoutWatcher() {
   const [showWarning, setShowWarning] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(60);
 
-  const lastActivityRef = useRef(Date.now());
+  const lastActivityRef = useRef(0);
   const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,12 +70,18 @@ export function SessionTimeoutWatcher() {
   useEffect(() => {
     if (!session) return;
 
-    scheduleLogout();
+    lastActivityRef.current = Date.now();
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) scheduleLogout();
+    });
 
     const onActivity = () => handleActivity();
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
 
     return () => {
+      cancelled = true;
       clearTimers();
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
     };

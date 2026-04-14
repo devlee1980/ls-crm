@@ -28,6 +28,8 @@ const PACK_SIZE_GALLONS: Record<string, number | null> = {
   "Case":        null,
   "Case 2x2.5":  5,
   "Case 4x1":    4,
+  "Case 2×5.1L": 10.2 / LITERS_PER_GALLON,
+  "Case 2x5.1L": 10.2 / LITERS_PER_GALLON,
   "Drum":        null,
   "Tote":        null,
   "Tote 135 Gal": 135,
