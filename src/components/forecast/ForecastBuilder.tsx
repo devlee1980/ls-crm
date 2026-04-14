@@ -23,7 +23,7 @@ const PACK_SIZE_GALLONS: Record<string, number | null> = {
   "Each":        null,
   "Quart":       0.25,
   "Gallon":      1,
-  "2.5 Gal":     2.5,
+  "Gal":         2.5,
   "5 Gal":       5,
   "Case":        null,
   "Case 2x2.5":  5,
