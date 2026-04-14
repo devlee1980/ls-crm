@@ -23,12 +23,14 @@ import {
   TrendingUp,
   CheckSquare,
   DollarSign,
+  Paperclip,
 } from "lucide-react";
 import { LocationsTab } from "./tabs/LocationsTab";
 import { ContactsTab } from "./tabs/ContactsTab";
 import { RevenueTab } from "./tabs/RevenueTab";
 import { ActionItemsTab } from "./tabs/ActionItemsTab";
 import { ForecastsTab } from "./tabs/ForecastsTab";
+import { AttachmentsTab } from "./tabs/AttachmentsTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -294,7 +296,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
 
       {/* Tabs */}
       <Tabs defaultValue="locations">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="locations" className="gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
             Locations
@@ -314,6 +316,10 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
           <TabsTrigger value="forecasts" className="gap-1.5">
             <TrendingUp className="h-3.5 w-3.5" />
             Forecasts
+          </TabsTrigger>
+          <TabsTrigger value="quotes" className="gap-1.5">
+            <Paperclip className="h-3.5 w-3.5" />
+            Quotes
           </TabsTrigger>
         </TabsList>
 
@@ -343,6 +349,13 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
 
         <TabsContent value="forecasts">
           <ForecastsTab customerId={customer.id} initialForecasts={customer.forecasts} />
+        </TabsContent>
+
+        <TabsContent value="quotes">
+          <AttachmentsTab
+            customerId={customer.id}
+            initialAttachments={customer.attachments}
+          />
         </TabsContent>
       </Tabs>
 
