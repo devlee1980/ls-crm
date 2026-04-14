@@ -224,3 +224,28 @@ export function actionItemsDigestEmail(items: ActionItemEmailData[]): { subject:
 
   return { subject, html: baseTemplate(subject, body) };
 }
+
+// ─── Auth: Password Reset ─────────────────────────────────────────────────────
+
+export function passwordResetEmail(resetUrl: string): { subject: string; html: string } {
+  const subject = "Reset your LS Nexus password";
+
+  const body = `
+    ${heading("Reset Your Password")}
+    ${subheading("We received a request to reset the password for your LS Nexus account.")}
+    <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.6;">
+      Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.
+    </p>
+    <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:${ACCENT_COLOR};color:#ffffff;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">
+      Reset Password
+    </a>
+    ${divider()}
+    <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+      If you didn't request a password reset, you can safely ignore this email — your password won't change.<br/>
+      If the button above doesn't work, copy and paste this URL into your browser:<br/>
+      <span style="color:#3b82f6;word-break:break-all;">${resetUrl}</span>
+    </p>
+  `;
+
+  return { subject, html: baseTemplate(subject, body) };
+}

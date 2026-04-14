@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import Link from "next/link";
 import { FlaskConical, Loader2, AlertCircle, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 
@@ -132,9 +133,12 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <span className="text-xs text-muted-foreground cursor-not-allowed select-none">
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline hover:text-foreground transition-colors"
+                  >
                     Forgot password?
-                  </span>
+                  </Link>
                 </div>
                 <Input
                   id="password"
