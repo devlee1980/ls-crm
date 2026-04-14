@@ -6,7 +6,10 @@ import { DashboardKPIs } from "@/components/dashboard/DashboardKPIs";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopCustomers } from "@/components/dashboard/TopCustomers";
 import { UpcomingActions } from "@/components/dashboard/UpcomingActions";
+import { PipelineSummary } from "@/components/dashboard/PipelineSummary";
 import type { Session } from "next-auth";
+
+const STAGE_ORDER = ["LEAD", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"] as const;
 
 async function getDashboardData(userId: string, role: string, session: Session) {
   const entityFilter = getEntityFilter(session);
@@ -25,6 +28,7 @@ async function getDashboardData(userId: string, role: string, session: Session) 
     topCustomers,
     recentActions,
     monthlyRevenue,
+    pipelineDeals,
   ] = await Promise.all([
     prisma.customer.count({ where: customerWhere }),
     prisma.forecast.count({
@@ -67,6 +71,10 @@ async function getDashboardData(userId: string, role: string, session: Session) 
       orderBy: { period: "asc" },
       take: 8,
     }),
+    prisma.pipelineDeal.findMany({
+      where: role === "REP" ? { assignedRepId: userId } : {},
+      select: { stage: true, value: true, probability: true },
+    }),
   ]);
 
   const topCustomersWithRevenue = topCustomers
@@ -79,6 +87,27 @@ async function getDashboardData(userId: string, role: string, session: Session) 
     }))
     .sort((a, b) => b.totalRevenue - a.totalRevenue)
     .slice(0, 5);
+
+  const pipelineByStage = STAGE_ORDER.map((stage) => {
+    const stageDeals = pipelineDeals.filter((d) => d.stage === stage);
+    return {
+      stage,
+      label: stage,
+      count: stageDeals.length,
+      value: stageDeals.reduce((s, d) => s + d.value, 0),
+      color: "",
+      badgeClass: "",
+    };
+  });
+
+  const openPipelineDeals = pipelineDeals.filter(
+    (d) => d.stage !== "WON" && d.stage !== "LOST"
+  );
+  const pipelineTotalValue = openPipelineDeals.reduce((s, d) => s + d.value, 0);
+  const pipelineWeightedValue = openPipelineDeals.reduce(
+    (s, d) => s + d.value * (d.probability / 100),
+    0
+  );
 
   return {
     kpis: {
@@ -93,6 +122,12 @@ async function getDashboardData(userId: string, role: string, session: Session) 
       period: r.period,
       revenue: r._sum.totalAmount ?? 0,
     })),
+    pipeline: {
+      stages: pipelineByStage,
+      totalValue: pipelineTotalValue,
+      weightedValue: pipelineWeightedValue,
+      openDeals: openPipelineDeals.length,
+    },
   };
 }
 
@@ -115,9 +150,19 @@ export default async function DashboardPage() {
           <div className="lg:col-span-2">
             <RevenueChart data={data.monthlyRevenue} />
           </div>
+          <PipelineSummary
+            stages={data.pipeline.stages}
+            totalValue={data.pipeline.totalValue}
+            weightedValue={data.pipeline.weightedValue}
+            openDeals={data.pipeline.openDeals}
+          />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <UpcomingActions actions={data.recentActions} />
+          </div>
           <TopCustomers customers={data.topCustomers} />
         </div>
-        <UpcomingActions actions={data.recentActions} />
       </main>
     </div>
   );

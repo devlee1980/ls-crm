@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronRight,
   UserCog,
+  Kanban,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/products", label: "Item Master", icon: Package },
   { href: "/forecast", label: "Forecasting", icon: TrendingUp },
   { href: "/action-items", label: "Action Items", icon: CheckSquare },

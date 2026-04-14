@@ -33,6 +33,7 @@ model User {
   forecasts      Forecast[]
   actionItems    ActionItem[]
   revenueRecords RevenueRecord[]
+  pipelineDeals  PipelineDeal[] @relation("PipelineDeals")
 
   @@map("users")
 }
@@ -74,6 +75,7 @@ model Customer {
   forecasts      Forecast[]
   revenueRecords RevenueRecord[]
   attachments    Attachment[]
+  pipelineDeals  PipelineDeal[]
 
   @@map("customers")
 }
@@ -261,6 +263,35 @@ enum ActionItemStatus {
   TODO
   IN_PROGRESS
   DONE
+}
+
+// ─── Pipeline ────────────────────────────────────────────────────────────────
+
+model PipelineDeal {
+  id            String        @id @default(cuid())
+  title         String
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  assignedRepId String?
+  assignedRep   User?         @relation("PipelineDeals", fields: [assignedRepId], references: [id])
+  stage         PipelineStage @default(LEAD)
+  value         Float         @default(0)
+  probability   Int           @default(10)
+  expectedClose DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("pipeline_deals")
+}
+
+enum PipelineStage {
+  LEAD
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
 }
 
 // ─── Attachments (S3) ────────────────────────────────────────────────────────
