@@ -77,6 +77,7 @@ model Customer {
   revenueRecords RevenueRecord[]
   attachments    Attachment[]
   pipelineDeals  PipelineDeal[]
+  accountScore   AccountScore?
 
   @@map("customers")
 }
@@ -335,4 +336,44 @@ model Attachment {
   createdAt  DateTime  @default(now())
 
   @@map("attachments")
+}
+
+// ─── Account Scoring (US Market) ─────────────────────────────────────────────
+
+model AccountScore {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Strategic Alignment (max 25 weighted pts)
+  sharedVision         Int @default(0)
+  valueLsCapabilities  Int @default(0)
+  capturesScienceValue Int @default(0)
+
+  // Demand Creation (max 23 weighted pts)
+  createGrowerDemand  Int @default(0)
+  agronomistInfluence Int @default(0)
+  trialCapability     Int @default(0)
+
+  // Route-to-Market (max 23 weighted pts)
+  accessStrategicMarkets Int @default(0)
+  forceMultiplier        Int @default(0)
+  channelControl         Int @default(0)
+
+  // Commercial (max 9 weighted pts)
+  marginAlignment   Int @default(0)
+  pricingPhilosophy Int @default(0)
+
+  // Operational (max 7 weighted pts)
+  supplyChainStrength Int @default(0)
+  easeOfDoing         Int @default(0)
+
+  // Financial (max 8 weighted pts — score of 8 at weight 8)
+  financialStability Int @default(0)
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("account_scores")
 }

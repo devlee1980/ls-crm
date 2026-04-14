@@ -15,6 +15,7 @@ import {
   Kanban,
   X,
   BarChart2,
+  Star,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/products", label: "Item Master", icon: Package },
   { href: "/forecast", label: "Forecasting", icon: TrendingUp },
+  { href: "/scoring", label: "Account Scoring", icon: Star },
   { href: "/action-items", label: "Action Items", icon: CheckSquare },
 ];
 
