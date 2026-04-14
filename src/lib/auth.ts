@@ -61,6 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: true,
             password: true,
             role: true,
+            division: true,
             avatarUrl: true,
             isActive: true,
             loginAttempts: true,
@@ -111,6 +112,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          division: user.division,
           image: user.avatarUrl,
         };
       },
@@ -121,6 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.division = (user as { division?: string }).division;
       }
       return token;
     },
@@ -128,6 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.division = token.division as string | undefined;
       }
       return session;
     },

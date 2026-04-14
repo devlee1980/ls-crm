@@ -11,8 +11,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { signOut, useSession } from "next-auth/react";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Settings, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const DIVISION_LABELS: Record<string, string> = {
+  LS_US: "LS US",
+  LS_CANADA: "LS Canada",
+};
+
+const DIVISION_COLORS: Record<string, string> = {
+  LS_US: "bg-amber-50 text-amber-700 border border-amber-200",
+  LS_CANADA: "bg-red-50 text-red-700 border border-red-200",
+};
 
 interface HeaderProps {
   title: string;
@@ -22,9 +32,19 @@ interface HeaderProps {
 export function Header({ title, subtitle }: HeaderProps) {
   const { data: session } = useSession();
   const user = session?.user;
+  const extUser = user as { role?: string; division?: string } | undefined;
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase()
     : "U";
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const division = extUser?.division;
 
   return (
     <header className="h-16 border-b bg-background flex items-center justify-between px-6">
@@ -34,6 +54,19 @@ export function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Today's date */}
+        <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground">
+          <CalendarDays className="h-4 w-4" />
+          <span>{today}</span>
+        </div>
+
+        {/* Division badge */}
+        {division && DIVISION_LABELS[division] && (
+          <span className={`hidden md:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${DIVISION_COLORS[division]}`}>
+            {DIVISION_LABELS[division]}
+          </span>
+        )}
+
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
         </Button>
@@ -49,7 +82,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium">{user?.name}</p>
               <Badge variant="secondary" className="text-xs h-4">
-                {(user as { role?: string })?.role ?? "REP"}
+                {extUser?.role ?? "REP"}
               </Badge>
             </div>
           </DropdownMenuTrigger>
@@ -58,6 +91,11 @@ export function Header({ title, subtitle }: HeaderProps) {
               <div>
                 <p className="font-medium">{user?.name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
+                {division && DIVISION_LABELS[division] && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {DIVISION_LABELS[division]}
+                  </p>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
