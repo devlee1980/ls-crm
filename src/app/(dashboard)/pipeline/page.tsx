@@ -2,17 +2,24 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
+import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
 
 export default async function PipelinePage() {
   const session = await auth();
   const userId = session!.user!.id!;
   const role = (session!.user as { role?: string })?.role ?? "REP";
+  const division = (session!.user as { division?: string | null })?.division;
 
-  const whereClause = role === "REP" ? { assignedRepId: userId } : {};
+  const dealWhere =
+    role === "REP"
+      ? { assignedRepId: userId }
+      : role === "MANAGER" && shouldFilterByDivision(role, division)
+      ? { assignedRep: { division } }
+      : {};
 
   const [deals, customers, reps] = await Promise.all([
     prisma.pipelineDeal.findMany({
-      where: whereClause,
+      where: dealWhere,
       include: {
         customer: { select: { id: true, name: true } },
         assignedRep: { select: { id: true, name: true } },
@@ -21,12 +28,18 @@ export default async function PipelinePage() {
     }),
     prisma.customer.findMany({
       select: { id: true, name: true },
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        ...getDivisionFilter(role, division),
+      },
       orderBy: { name: "asc" },
     }),
     prisma.user.findMany({
       select: { id: true, name: true },
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(role !== "ADMIN" && division ? { division: division as "LS_US" | "LS_CANADA" } : {}),
+      },
       orderBy: { name: "asc" },
     }),
   ]);

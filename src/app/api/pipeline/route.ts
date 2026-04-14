@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, getManagerEmails } from "@/lib/resend";
 import { dealCreatedEmail } from "@/lib/email-templates";
+import { shouldFilterByDivision } from "@/lib/division";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -14,11 +15,16 @@ export async function GET(req: Request) {
 
   const role = (session.user as { role?: string })?.role ?? "REP";
   const userId = session.user?.id;
+  const division = (session.user as { division?: string | null })?.division;
 
   const where: Record<string, unknown> = {};
   if (stage) where.stage = stage;
   if (repId) where.assignedRepId = repId;
   if (role === "REP") where.assignedRepId = userId;
+  // MANAGER: scope to their division via the assigned rep
+  if (role === "MANAGER" && shouldFilterByDivision(role, division)) {
+    where.assignedRep = { division };
+  }
 
   const deals = await prisma.pipelineDeal.findMany({
     where,

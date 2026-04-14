@@ -2,14 +2,29 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ActionItemsBoard } from "@/components/action-items/ActionItemsBoard";
+import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
 
 export default async function ActionItemsPage() {
   const session = await auth();
   const role = (session!.user as { role?: string })?.role ?? "REP";
   const userId = session!.user!.id!;
+  const division = (session!.user as { division?: string | null })?.division;
+
+  const divisionWhere =
+    role === "MANAGER" && shouldFilterByDivision(role, division)
+      ? {
+          OR: [
+            { customer: { division } },
+            { customerId: null, assignedTo: { division } },
+          ],
+        }
+      : {};
 
   const items = await prisma.actionItem.findMany({
-    where: role === "REP" ? { assignedToId: userId } : {},
+    where: {
+      ...(role === "REP" ? { assignedToId: userId } : {}),
+      ...divisionWhere,
+    },
     include: {
       customer: { select: { id: true, name: true } },
       assignedTo: { select: { id: true, name: true } },
@@ -18,13 +33,20 @@ export default async function ActionItemsPage() {
   });
 
   const customers = await prisma.customer.findMany({
-    where: role === "REP" ? { assignedRepId: userId } : {},
+    where: {
+      ...getDivisionFilter(role, division),
+      ...(role === "REP" ? { assignedRepId: userId } : {}),
+    },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 
   const reps = await prisma.user.findMany({
     select: { id: true, name: true },
+    where: {
+      isActive: true,
+      ...(role !== "ADMIN" && division ? { division: division as "LS_US" | "LS_CANADA" } : {}),
+    },
     orderBy: { name: "asc" },
   });
 

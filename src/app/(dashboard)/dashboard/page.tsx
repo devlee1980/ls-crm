@@ -1,24 +1,41 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getEntityFilter } from "@/lib/entity";
 import { Header } from "@/components/layout/Header";
 import { DashboardKPIs } from "@/components/dashboard/DashboardKPIs";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopCustomers } from "@/components/dashboard/TopCustomers";
 import { UpcomingActions } from "@/components/dashboard/UpcomingActions";
 import { PipelineSummary } from "@/components/dashboard/PipelineSummary";
-import type { Session } from "next-auth";
+import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
 
 const STAGE_ORDER = ["LEAD", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"] as const;
 
-async function getDashboardData(userId: string, role: string, session: Session) {
-  const entityFilter = getEntityFilter(session);
+async function getDashboardData(userId: string, role: string, division?: string | null) {
   const repFilter = role === "REP" ? { assignedRepId: userId } : {};
   const repRevenueFilter = role === "REP" ? { repId: userId } : {};
   const repForecastFilter = role === "REP" ? { repId: userId } : {};
   const repActionFilter = role === "REP" ? { assignedToId: userId } : {};
 
-  const customerWhere = { ...entityFilter, ...repFilter };
+  const divFilter = getDivisionFilter(role, division);
+  const managerRepDivFilter =
+    role === "MANAGER" && shouldFilterByDivision(role, division)
+      ? { rep: { division } }
+      : {};
+  const managerPipelineDivFilter =
+    role === "MANAGER" && shouldFilterByDivision(role, division)
+      ? { assignedRep: { division } }
+      : {};
+  const managerActionDivFilter =
+    role === "MANAGER" && shouldFilterByDivision(role, division)
+      ? {
+          OR: [
+            { customer: { division } },
+            { customerId: null, assignedTo: { division } },
+          ],
+        }
+      : {};
+
+  const customerWhere = { ...divFilter, ...repFilter };
 
   const [
     customerCount,
@@ -34,16 +51,16 @@ async function getDashboardData(userId: string, role: string, session: Session) 
     prisma.forecast.count({
       where: {
         status: { in: ["DRAFT", "SUBMITTED"] },
-        ...entityFilter,
         ...repForecastFilter,
+        ...managerRepDivFilter,
       },
     }),
     prisma.revenueRecord.aggregate({
       _sum: { totalAmount: true },
-      where: { ...entityFilter, ...repRevenueFilter },
+      where: { ...repRevenueFilter, ...managerRepDivFilter },
     }),
     prisma.actionItem.count({
-      where: { status: { not: "DONE" }, ...entityFilter, ...repActionFilter },
+      where: { status: { not: "DONE" }, ...repActionFilter, ...managerActionDivFilter },
     }),
     prisma.customer.findMany({
       where: customerWhere,
@@ -57,8 +74,8 @@ async function getDashboardData(userId: string, role: string, session: Session) 
       where: {
         status: { not: "DONE" },
         dueDate: { not: null },
-        ...entityFilter,
         ...repActionFilter,
+        ...managerActionDivFilter,
       },
       include: { customer: { select: { name: true } } },
       orderBy: { dueDate: "asc" },
@@ -67,12 +84,15 @@ async function getDashboardData(userId: string, role: string, session: Session) 
     prisma.revenueRecord.groupBy({
       by: ["period"],
       _sum: { totalAmount: true },
-      where: { ...entityFilter, ...repRevenueFilter },
+      where: { ...repRevenueFilter, ...managerRepDivFilter },
       orderBy: { period: "asc" },
       take: 8,
     }),
     prisma.pipelineDeal.findMany({
-      where: role === "REP" ? { assignedRepId: userId } : {},
+      where:
+        role === "REP"
+          ? { assignedRepId: userId }
+          : { ...managerPipelineDivFilter },
       select: { stage: true, value: true, probability: true },
     }),
   ]);
@@ -135,8 +155,9 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user!.id!;
   const role = (session!.user as { role?: string })?.role ?? "REP";
+  const division = (session!.user as { division?: string | null })?.division;
 
-  const data = await getDashboardData(userId, role, session!);
+  const data = await getDashboardData(userId, role, division);
 
   return (
     <div className="flex flex-col">

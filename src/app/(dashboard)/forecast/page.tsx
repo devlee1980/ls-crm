@@ -2,14 +2,21 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ForecastList } from "@/components/forecast/ForecastList";
+import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
 
 export default async function ForecastPage() {
   const session = await auth();
   const role = (session!.user as { role?: string })?.role ?? "REP";
   const userId = session!.user!.id!;
+  const division = (session!.user as { division?: string | null })?.division;
 
   const forecasts = await prisma.forecast.findMany({
-    where: role === "REP" ? { repId: userId } : {},
+    where: {
+      ...(role === "REP" ? { repId: userId } : {}),
+      ...(role === "MANAGER" && shouldFilterByDivision(role, division)
+        ? { rep: { division } }
+        : {}),
+    },
     include: {
       customer: { select: { id: true, name: true } },
       rep: { select: { name: true } },
@@ -19,7 +26,10 @@ export default async function ForecastPage() {
   });
 
   const customers = await prisma.customer.findMany({
-    where: role === "REP" ? { assignedRepId: userId } : {},
+    where: {
+      ...getDivisionFilter(role, division),
+      ...(role === "REP" ? { assignedRepId: userId } : {}),
+    },
     select: { id: true, name: true, wholesalePercent: true, retailPercent: true },
     orderBy: { name: "asc" },
   });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { shouldFilterByDivision } from "@/lib/division";
 
 const schema = z.object({
   customerId: z.string().min(1),
@@ -28,12 +29,16 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
-  const role = (session.user as { role?: string })?.role;
+  const role = (session.user as { role?: string })?.role ?? "REP";
   const userId = session.user?.id;
+  const division = (session.user as { division?: string | null })?.division;
 
   const forecasts = await prisma.forecast.findMany({
     where: {
       ...(role === "REP" ? { repId: userId } : {}),
+      ...(role === "MANAGER" && shouldFilterByDivision(role, division)
+        ? { rep: { division } }
+        : {}),
       ...(status ? { status: status as "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" } : {}),
     },
     include: {

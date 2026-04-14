@@ -63,6 +63,7 @@ model Customer {
   status           CustomerStatus @default(ACTIVE)
   notes            String?
   website          String?
+  division         Division?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

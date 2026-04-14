@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { sendEmail, getManagerEmails } from "@/lib/resend";
 import { actionItemCreatedEmail } from "@/lib/email-templates";
+import { shouldFilterByDivision } from "@/lib/division";
 
 const schema = z.object({
   customerId: z.string().optional().nullable(),
@@ -21,13 +22,24 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
-  const role = (session.user as { role?: string })?.role;
+  const role = (session.user as { role?: string })?.role ?? "REP";
   const userId = session.user?.id;
+  const division = (session.user as { division?: string | null })?.division;
+
+  const divisionWhere = role === "MANAGER" && shouldFilterByDivision(role, division)
+    ? {
+        OR: [
+          { customer: { division } },
+          { customerId: null, assignedTo: { division } },
+        ],
+      }
+    : {};
 
   const items = await prisma.actionItem.findMany({
     where: {
       ...(role === "REP" ? { assignedToId: userId } : {}),
       ...(status ? { status: status as "TODO" | "IN_PROGRESS" | "DONE" } : {}),
+      ...divisionWhere,
     },
     include: {
       customer: { select: { id: true, name: true } },

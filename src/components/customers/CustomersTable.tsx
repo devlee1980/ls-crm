@@ -62,9 +62,13 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
 export function CustomersTable({
   initialCustomers,
   reps,
+  userRole,
+  userDivision,
 }: {
   initialCustomers: Customer[];
   reps: Rep[];
+  userRole?: string;
+  userDivision?: string | null;
 }) {
   const [customers, setCustomers] = useState(initialCustomers);
   const [search, setSearch] = useState("");
@@ -209,6 +213,8 @@ export function CustomersTable({
           </DialogHeader>
           <CustomerForm
             reps={reps}
+            userRole={userRole}
+            userDivision={userDivision}
             onSave={handleCreate}
             onCancel={() => setDialogOpen(false)}
           />

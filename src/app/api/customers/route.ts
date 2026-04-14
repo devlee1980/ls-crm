@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getDivisionFilter } from "@/lib/division";
 
 const customerSchema = z.object({
   name: z.string().min(1),
@@ -15,6 +16,7 @@ const customerSchema = z.object({
   notes: z.string().optional().nullable(),
   website: z.string().optional().nullable(),
   assignedRepId: z.string().optional().nullable(),
+  division: z.enum(["LS_US", "LS_CANADA"]).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -25,11 +27,13 @@ export async function GET(req: Request) {
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status");
 
-  const role = (session.user as { role?: string })?.role;
+  const role = (session.user as { role?: string })?.role ?? "REP";
   const userId = session.user?.id;
+  const division = (session.user as { division?: string | null })?.division;
 
   const customers = await prisma.customer.findMany({
     where: {
+      ...getDivisionFilter(role, division),
       ...(role === "REP" ? { assignedRepId: userId } : {}),
       ...(status ? { status: status as "ACTIVE" | "INACTIVE" | "PROSPECT" } : {}),
       ...(search
@@ -57,12 +61,20 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const sessionDivision = (session.user as { division?: string | null })?.division;
+
   const body = await req.json();
   const parsed = customerSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const customer = await prisma.customer.create({ data: parsed.data });
+  // ADMIN can set division explicitly from the form; all others get their own division
+  const division = role === "ADMIN" ? (parsed.data.division ?? null) : (sessionDivision ?? null);
+
+  const customer = await prisma.customer.create({
+    data: { ...parsed.data, division: division as "LS_US" | "LS_CANADA" | null },
+  });
   return NextResponse.json(customer, { status: 201 });
 }

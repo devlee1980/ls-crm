@@ -6,8 +6,8 @@ import { z } from "zod";
 const productSchema = z.object({
   sku: z.string().min(1),
   name: z.string().min(1),
-  description: z.string().optional(),
-  category: z.string().optional(),
+  description: z.string().optional().nullable(),
+  category: z.string().optional().nullable(),
   unitPrice: z.number().positive(),
   uom: z.string().default("Each"),
   isActive: z.boolean().default(true),

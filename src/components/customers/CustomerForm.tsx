@@ -25,6 +25,7 @@ interface CustomerData {
   notes?: string | null;
   website?: string | null;
   assignedRepId?: string | null;
+  division?: string | null;
 }
 
 interface Rep {
@@ -45,11 +46,15 @@ const INDUSTRIES = [
 export function CustomerForm({
   initialData,
   reps,
+  userRole,
+  userDivision,
   onSave,
   onCancel,
 }: {
   initialData?: CustomerData | null;
   reps: Rep[];
+  userRole?: string;
+  userDivision?: string | null;
   onSave: (data: CustomerData) => void;
   onCancel: () => void;
 }) {
@@ -64,6 +69,7 @@ export function CustomerForm({
     notes: initialData?.notes ?? "",
     website: initialData?.website ?? "",
     assignedRepId: initialData?.assignedRepId ?? "",
+    division: initialData?.division ?? userDivision ?? "",
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -79,6 +85,7 @@ export function CustomerForm({
       notes: form.notes || null,
       website: form.website || null,
       assignedRepId: form.assignedRepId || null,
+      division: form.division || null,
     });
   }
 
@@ -153,6 +160,24 @@ export function CustomerForm({
             </SelectContent>
           </Select>
         </div>
+
+        {userRole === "ADMIN" && (
+          <div className="space-y-2 col-span-2">
+            <Label htmlFor="division">Division</Label>
+            <Select
+              value={form.division}
+              onValueChange={(v) => setForm((f) => ({ ...f, division: v ?? "" }))}
+            >
+              <SelectTrigger id="division">
+                <SelectValue placeholder="Select division" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LS_US">LS United States</SelectItem>
+                <SelectItem value="LS_CANADA">LS Canada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="wholesale">Wholesale %</Label>
