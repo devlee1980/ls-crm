@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerAccessWhere } from "@/lib/division";
 import { z } from "zod";
+
+function scoringSessionContext(session: Session) {
+  const userId = session.user?.id ?? "";
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+  return { userId, role, division };
+}
 
 const patchSchema = z.object({
   sharedVision: z.number().int().min(0).max(5).optional(),
@@ -29,6 +38,14 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { customerId } = await params;
+  const { userId, role, division } = scoringSessionContext(session);
+
+  const allowed = await prisma.customer.findFirst({
+    where: { id: customerId, ...getCustomerAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!allowed) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const score = await prisma.accountScore.findUnique({
     where: { customerId },
     include: { customer: { select: { id: true, name: true } } },
@@ -46,6 +63,14 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { customerId } = await params;
+  const { userId, role, division } = scoringSessionContext(session);
+
+  const allowed = await prisma.customer.findFirst({
+    where: { id: customerId, ...getCustomerAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!allowed) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {

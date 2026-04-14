@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerAccessWhere, getProductMarketWhere } from "@/lib/division";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { CustomerDetail } from "@/components/customers/CustomerDetail";
@@ -9,11 +10,14 @@ export default async function CustomerDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await auth();
+  const session = await auth();
+  const userId = session?.user?.id ?? "";
+  const role = (session?.user as { role?: string })?.role ?? "REP";
+  const division = (session?.user as { division?: string | null })?.division;
   const { id } = await params;
 
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+  const customer = await prisma.customer.findFirst({
+    where: { id, ...getCustomerAccessWhere(role, userId, division) },
     include: {
       assignedRep: { select: { id: true, name: true } },
       locations: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
@@ -42,7 +46,7 @@ export default async function CustomerDetailPage({
   });
 
   const products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, ...getProductMarketWhere(role, division) },
     select: { id: true, name: true, sku: true, unitPrice: true, uom: true },
     orderBy: { name: "asc" },
   });

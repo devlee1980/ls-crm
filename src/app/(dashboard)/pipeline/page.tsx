@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
-import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
+import { getDivisionFilter, getPipelineDealWhere } from "@/lib/division";
 
 export default async function PipelinePage() {
   const session = await auth();
@@ -10,16 +10,9 @@ export default async function PipelinePage() {
   const role = (session!.user as { role?: string })?.role ?? "REP";
   const division = (session!.user as { division?: string | null })?.division;
 
-  const dealWhere =
-    role === "REP"
-      ? { assignedRepId: userId }
-      : role === "MANAGER" && shouldFilterByDivision(role, division)
-      ? { assignedRep: { division } }
-      : {};
-
   const [deals, customers, reps] = await Promise.all([
     prisma.pipelineDeal.findMany({
-      where: dealWhere,
+      where: getPipelineDealWhere(role, userId, division),
       include: {
         customer: { select: { id: true, name: true } },
         assignedRep: { select: { id: true, name: true } },

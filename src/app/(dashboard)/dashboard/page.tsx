@@ -6,24 +6,24 @@ import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TopCustomers } from "@/components/dashboard/TopCustomers";
 import { UpcomingActions } from "@/components/dashboard/UpcomingActions";
 import { PipelineSummary } from "@/components/dashboard/PipelineSummary";
-import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
+import {
+  getDivisionFilter,
+  getForecastAccessWhere,
+  getPipelineDealWhere,
+  shouldFilterByDivision,
+} from "@/lib/division";
 
 const STAGE_ORDER = ["LEAD", "QUALIFIED", "PROPOSAL", "NEGOTIATION", "WON", "LOST"] as const;
 
 async function getDashboardData(userId: string, role: string, division?: string | null) {
   const repFilter = role === "REP" ? { assignedRepId: userId } : {};
   const repRevenueFilter = role === "REP" ? { repId: userId } : {};
-  const repForecastFilter = role === "REP" ? { repId: userId } : {};
   const repActionFilter = role === "REP" ? { assignedToId: userId } : {};
 
   const divFilter = getDivisionFilter(role, division);
   const managerRepDivFilter =
     role === "MANAGER" && shouldFilterByDivision(role, division)
       ? { rep: { division } }
-      : {};
-  const managerPipelineDivFilter =
-    role === "MANAGER" && shouldFilterByDivision(role, division)
-      ? { assignedRep: { division } }
       : {};
   const managerActionDivFilter =
     role === "MANAGER" && shouldFilterByDivision(role, division)
@@ -51,8 +51,7 @@ async function getDashboardData(userId: string, role: string, division?: string 
     prisma.forecast.count({
       where: {
         status: { in: ["DRAFT", "SUBMITTED"] },
-        ...repForecastFilter,
-        ...managerRepDivFilter,
+        ...getForecastAccessWhere(role, userId, division),
       },
     }),
     prisma.revenueRecord.aggregate({
@@ -89,10 +88,7 @@ async function getDashboardData(userId: string, role: string, division?: string 
       take: 8,
     }),
     prisma.pipelineDeal.findMany({
-      where:
-        role === "REP"
-          ? { assignedRepId: userId }
-          : { ...managerPipelineDivFilter },
+      where: getPipelineDealWhere(role, userId, division),
       select: { stage: true, value: true, probability: true },
     }),
   ]);

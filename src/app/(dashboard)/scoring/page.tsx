@@ -1,13 +1,20 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerAccessWhere } from "@/lib/division";
 import { Header } from "@/components/layout/Header";
 import { ScoringTable } from "@/components/scoring/ScoringTable";
 
 export default async function ScoringPage() {
-  await auth();
+  const session = await auth();
+  const userId = session?.user?.id ?? "";
+  const role = (session?.user as { role?: string })?.role ?? "REP";
+  const division = (session?.user as { division?: string | null })?.division;
 
   const customers = await prisma.customer.findMany({
-    where: { status: { not: "INACTIVE" } },
+    where: {
+      status: { not: "INACTIVE" },
+      ...getCustomerAccessWhere(role, userId, division),
+    },
     orderBy: { name: "asc" },
     select: {
       id: true,

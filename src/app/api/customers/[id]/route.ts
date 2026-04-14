@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerAccessWhere } from "@/lib/division";
 import { z } from "zod";
+
+function customerAccessContext(session: Session) {
+  const userId = session.user?.id ?? "";
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+  return { userId, role, division };
+}
 import {
   isBlankAccountNumber,
   normalizeAccountNumber,
@@ -28,9 +37,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const { userId, role, division } = customerAccessContext(session);
 
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+  const customer = await prisma.customer.findFirst({
+    where: { id, ...getCustomerAccessWhere(role, userId, division) },
     include: {
       assignedRep: { select: { id: true, name: true } },
       locations: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
@@ -60,6 +70,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const { userId, role, division } = customerAccessContext(session);
+
+  const existingCustomer = await prisma.customer.findFirst({
+    where: { id, ...getCustomerAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!existingCustomer) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
@@ -109,6 +129,15 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const { userId, role, division } = customerAccessContext(session);
+
+  const existingCustomer = await prisma.customer.findFirst({
+    where: { id, ...getCustomerAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!existingCustomer) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   try {
     await prisma.$transaction([

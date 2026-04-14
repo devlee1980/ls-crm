@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getProductMarketWhere } from "@/lib/division";
 import { z } from "zod";
 
 const productSchema = z.object({
@@ -21,7 +22,11 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+
   const products = await prisma.product.findMany({
+    where: { ...getProductMarketWhere(role, division) },
     orderBy: { name: "asc" },
     include: { _count: { select: { forecastItems: true } } },
   });

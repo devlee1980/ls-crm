@@ -1,12 +1,16 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getProductMarketWhere } from "@/lib/division";
 import { Header } from "@/components/layout/Header";
 import { ProductsTable } from "@/components/products/ProductsTable";
 
 export default async function ProductsPage() {
-  await auth();
+  const session = await auth();
+  const role = (session?.user as { role?: string })?.role ?? "REP";
+  const division = (session?.user as { division?: string | null })?.division;
 
   const products = await prisma.product.findMany({
+    where: { ...getProductMarketWhere(role, division) },
     orderBy: { name: "asc" },
     include: { _count: { select: { forecastItems: true } } },
   });

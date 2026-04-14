@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import type { PipelineStage, Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, getManagerEmails } from "@/lib/resend";
 import { dealCreatedEmail } from "@/lib/email-templates";
-import { shouldFilterByDivision } from "@/lib/division";
+import { getPipelineDealWhere } from "@/lib/division";
+import { assertPipelineDealRefsAllowed } from "@/lib/pipeline-deal-access";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -14,17 +16,15 @@ export async function GET(req: Request) {
   const repId = searchParams.get("repId");
 
   const role = (session.user as { role?: string })?.role ?? "REP";
-  const userId = session.user?.id;
+  const userId = session.user?.id ?? "";
   const division = (session.user as { division?: string | null })?.division;
 
-  const where: Record<string, unknown> = {};
-  if (stage) where.stage = stage;
-  if (repId) where.assignedRepId = repId;
-  if (role === "REP") where.assignedRepId = userId;
-  // MANAGER: scope to their division via the assigned rep
-  if (role === "MANAGER" && shouldFilterByDivision(role, division)) {
-    where.assignedRep = { division };
-  }
+  const access = getPipelineDealWhere(role, userId, division);
+  const where: Prisma.PipelineDealWhereInput = {
+    ...access,
+    ...(stage ? { stage: stage as PipelineStage } : {}),
+    ...(repId ? { assignedRepId: repId } : {}),
+  };
 
   const deals = await prisma.pipelineDeal.findMany({
     where,
@@ -46,6 +46,19 @@ export async function POST(req: Request) {
   const { title, customerId, assignedRepId, stage, value, probability, expectedClose, notes } = body;
 
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+
+  const refsOk = await assertPipelineDealRefsAllowed(
+    role,
+    division,
+    customerId || null,
+    assignedRepId || null
+  );
+  if (!refsOk.ok) {
+    return NextResponse.json({ error: refsOk.message }, { status: 400 });
+  }
 
   const deal = await prisma.pipelineDeal.create({
     data: {

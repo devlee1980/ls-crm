@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getForecastAccessWhere } from "@/lib/division";
 import { z } from "zod";
 
 const patchSchema = z.object({
@@ -13,9 +14,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const userId = session.user?.id ?? "";
+  const division = (session.user as { division?: string | null })?.division;
 
-  const forecast = await prisma.forecast.findUnique({
-    where: { id },
+  const forecast = await prisma.forecast.findFirst({
+    where: { id, ...getForecastAccessWhere(role, userId, division) },
     include: {
       customer: { select: { id: true, name: true } },
       rep: { select: { name: true } },
@@ -34,6 +38,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const userId = session.user?.id ?? "";
+  const division = (session.user as { division?: string | null })?.division;
+
+  const existing = await prisma.forecast.findFirst({
+    where: { id, ...getForecastAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
@@ -49,6 +63,16 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const userId = session.user?.id ?? "";
+  const division = (session.user as { division?: string | null })?.division;
+
+  const existing = await prisma.forecast.findFirst({
+    where: { id, ...getForecastAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   await prisma.forecast.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

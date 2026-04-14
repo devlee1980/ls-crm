@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { ForecastList } from "@/components/forecast/ForecastList";
-import { shouldFilterByDivision } from "@/lib/division";
+import { getForecastAccessWhere } from "@/lib/division";
 
 export default async function ForecastPage() {
   const session = await auth();
@@ -11,12 +11,7 @@ export default async function ForecastPage() {
   const division = (session!.user as { division?: string | null })?.division;
 
   const forecasts = await prisma.forecast.findMany({
-    where: {
-      ...(role === "REP" ? { repId: userId } : {}),
-      ...(role === "MANAGER" && shouldFilterByDivision(role, division)
-        ? { rep: { division } }
-        : {}),
-    },
+    where: getForecastAccessWhere(role, userId, division),
     include: {
       customer: { select: { id: true, name: true } },
       rep: { select: { name: true } },

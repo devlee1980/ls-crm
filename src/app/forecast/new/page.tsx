@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDivisionFilter, shouldFilterByDivision } from "@/lib/division";
+import { getDivisionFilter, getProductMarketWhere } from "@/lib/division";
 import { ForecastBuilderPage } from "@/components/forecast/ForecastBuilderPage";
 
 export const metadata = { title: "New Forecast — LS Nexus" };
@@ -24,7 +24,7 @@ export default async function ForecastNewPage() {
       orderBy: { name: "asc" },
     }),
     prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...getProductMarketWhere(role, division) },
       select: {
         id: true,
         name: true,

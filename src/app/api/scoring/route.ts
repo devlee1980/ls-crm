@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerAccessWhere } from "@/lib/division";
 import { z } from "zod";
 
 const scoreSchema = z.object({
@@ -26,7 +27,12 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const userId = session.user?.id ?? "";
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+
   const scores = await prisma.accountScore.findMany({
+    where: { customer: getCustomerAccessWhere(role, userId, division) },
     include: { customer: { select: { id: true, name: true, status: true, assignedRep: { select: { name: true } } } } },
     orderBy: { updatedAt: "desc" },
   });
@@ -45,6 +51,18 @@ export async function POST(req: Request) {
   }
 
   const { customerId, ...data } = parsed.data;
+
+  const userId = session.user?.id ?? "";
+  const role = (session.user as { role?: string })?.role ?? "REP";
+  const division = (session.user as { division?: string | null })?.division;
+
+  const allowed = await prisma.customer.findFirst({
+    where: { id: customerId, ...getCustomerAccessWhere(role, userId, division) },
+    select: { id: true },
+  });
+  if (!allowed) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const score = await prisma.accountScore.upsert({
     where: { customerId },
