@@ -8,7 +8,7 @@ const userCreateSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  role: z.enum(["ADMIN", "MANAGER", "REP"]).default("REP"),
+  role: z.enum(["ADMIN", "MANAGER", "REP", "CS_REP"]).default("REP"),
   division: z.enum(["LS_US", "LS_CANADA"]).optional().nullable(),
   region: z.string().optional().nullable(),
   isActive: z.boolean().default(true),

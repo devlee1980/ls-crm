@@ -68,12 +68,14 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
   REP: "Sales Rep",
+  CS_REP: "CS Rep",
 };
 
 const ROLE_COLORS: Record<string, string> = {
   ADMIN: "bg-primary/10 text-primary border-primary/20",
   MANAGER: "bg-blue-50 text-blue-700 border-blue-200",
   REP: "bg-gray-50 text-gray-700 border-gray-200",
+  CS_REP: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
 const DIVISION_COLORS: Record<string, string> = {

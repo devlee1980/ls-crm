@@ -121,21 +121,6 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Division</Label>
-          <Select
-            value={form.division}
-            onValueChange={(v) => v && setForm((f) => ({ ...f, division: v }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select division" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="LS_US">LS US</SelectItem>
-              <SelectItem value="LS_CANADA">LS Canada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
           <Label>Role</Label>
           <Select
             value={form.role}
@@ -148,6 +133,34 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
               <SelectItem value="ADMIN">Admin</SelectItem>
               <SelectItem value="MANAGER">Manager</SelectItem>
               <SelectItem value="REP">Sales Rep</SelectItem>
+              <SelectItem value="CS_REP">Customer Service Rep</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>
+            Division Access
+            {form.role === "CS_REP" && (
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                (CS Rep region toggle)
+              </span>
+            )}
+          </Label>
+          <Select
+            value={form.division || "BOTH"}
+            onValueChange={(v) =>
+              setForm((f) => ({ ...f, division: v === "BOTH" ? "" : (v ?? "") }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select division" />
+            </SelectTrigger>
+            <SelectContent>
+              {form.role === "CS_REP" && (
+                <SelectItem value="BOTH">Both (US &amp; Canada)</SelectItem>
+              )}
+              <SelectItem value="LS_US">LS US</SelectItem>
+              <SelectItem value="LS_CANADA">LS Canada</SelectItem>
             </SelectContent>
           </Select>
         </div>

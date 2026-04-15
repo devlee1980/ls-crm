@@ -43,6 +43,7 @@ enum UserRole {
   ADMIN
   MANAGER
   REP
+  CS_REP
 }
 
 enum Division {

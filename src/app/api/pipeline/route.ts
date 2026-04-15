@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { PipelineStage, Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendEmail, getManagerEmails } from "@/lib/resend";
+import { sendEmail, getPipelineEmailRecipients } from "@/lib/resend";
 import { dealCreatedEmail } from "@/lib/email-templates";
 import { getPipelineDealWhere } from "@/lib/division";
 import { assertPipelineDealRefsAllowed } from "@/lib/pipeline-deal-access";
@@ -72,13 +72,19 @@ export async function POST(req: Request) {
       notes: notes || null,
     },
     include: {
-      customer: { select: { id: true, name: true } },
-      assignedRep: { select: { id: true, name: true } },
+      customer: { select: { id: true, name: true, division: true } },
+      assignedRep: { select: { id: true, name: true, division: true } },
     },
   });
 
+  // Resolve division from the rep first, then from the customer, for targeted notifications.
+  const dealDivision =
+    (deal.assignedRep as { division?: string | null } | null)?.division ??
+    (deal.customer as { division?: string | null } | null)?.division ??
+    null;
+
   // Fire-and-forget — don't block the response
-  getManagerEmails().then((to) => {
+  getPipelineEmailRecipients(dealDivision).then((to) => {
     const { subject, html } = dealCreatedEmail({
       ...deal,
       expectedClose: deal.expectedClose ? deal.expectedClose.toISOString() : null,

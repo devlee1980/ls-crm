@@ -14,6 +14,7 @@ const ROLE_COLORS: Record<string, string> = {
   ADMIN: "#e85a1e",
   MANAGER: "#3b82f6",
   REP: "#10b981",
+  CS_REP: "#a855f7",
   Unknown: "#94a3b8",
 };
 

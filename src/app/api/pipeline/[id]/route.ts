@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendEmail, getManagerEmails } from "@/lib/resend";
+import { sendEmail, getPipelineEmailRecipients } from "@/lib/resend";
 import { dealStageUpdatedEmail } from "@/lib/email-templates";
 import { getPipelineDealWhere } from "@/lib/division";
 import { assertPipelineDealRefsAllowed } from "@/lib/pipeline-deal-access";
@@ -78,13 +78,19 @@ export async function PUT(req: Request, { params }: Params) {
       ...(notes !== undefined && { notes: notes || null }),
     },
     include: {
-      customer: { select: { id: true, name: true } },
-      assignedRep: { select: { id: true, name: true } },
+      customer: { select: { id: true, name: true, division: true } },
+      assignedRep: { select: { id: true, name: true, division: true } },
     },
   });
 
   if (current && current.stage !== deal.stage) {
-    getManagerEmails().then((to) => {
+    // Resolve division from the rep first, then from the customer.
+    const dealDivision =
+      (deal.assignedRep as { division?: string | null } | null)?.division ??
+      (deal.customer as { division?: string | null } | null)?.division ??
+      null;
+
+    getPipelineEmailRecipients(dealDivision).then((to) => {
       const { subject, html } = dealStageUpdatedEmail(
         {
           ...deal,
