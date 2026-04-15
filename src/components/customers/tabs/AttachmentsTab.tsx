@@ -193,7 +193,11 @@ export function AttachmentsTab({
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     render={
-                      <a href={a.s3Url} target="_blank" rel="noopener noreferrer" download />
+                      <a
+                        href={`/api/attachments/${a.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
                     }
                   >
                     <Download className="h-4 w-4" />
