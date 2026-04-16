@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,10 @@ const US_STATES = [
   "VA","WA","WV","WI","WY",
 ];
 
+const CANADIAN_PROVINCES = [
+  "AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT",
+];
+
 export function LocationsTab({
   customerId,
   initialLocations,
@@ -25,19 +30,24 @@ export function LocationsTab({
   customerId: string;
   initialLocations: LocationItem[];
 }) {
-  const [locations, setLocations] = useState(initialLocations);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({
+  const { data: session } = useSession();
+  const isCanada = session?.user?.division === "LS_CANADA";
+
+  const emptyForm = {
     label: "Main",
     address1: "",
     address2: "",
     city: "",
     state: "",
     zip: "",
-    country: "US",
+    country: isCanada ? "Canada" : "US",
     phone: "",
     isPrimary: false,
-  });
+  };
+
+  const [locations, setLocations] = useState(initialLocations);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +61,7 @@ export function LocationsTab({
       setLocations((prev) => [loc, ...prev.map((l) => (form.isPrimary ? { ...l, isPrimary: false } : l))]);
       toast.success("Location added");
       setDialogOpen(false);
-      setForm({ label: "Main", address1: "", address2: "", city: "", state: "", zip: "", country: "US", phone: "", isPrimary: false });
+      setForm(emptyForm);
     } else {
       toast.error("Failed to add location");
     }
@@ -162,15 +172,15 @@ export function LocationsTab({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>State *</Label>
+                  <Label>{isCanada ? "Province / Territory *" : "State *"}</Label>
                   <select
                     className="w-full border rounded-md px-3 py-2 text-sm bg-background"
                     value={form.state}
                     onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
                     required
                   >
-                    <option value="">Select state</option>
-                    {US_STATES.map((s) => (
+                    <option value="">{isCanada ? "Select province/territory" : "Select state"}</option>
+                    {(isCanada ? CANADIAN_PROVINCES : US_STATES).map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -178,7 +188,7 @@ export function LocationsTab({
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>ZIP Code *</Label>
+                  <Label>{isCanada ? "Postal Code *" : "ZIP Code *"}</Label>
                   <Input
                     value={form.zip}
                     onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}

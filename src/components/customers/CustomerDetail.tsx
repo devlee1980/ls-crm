@@ -236,9 +236,9 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Button size="sm" onClick={() => setEditOpen(true)}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Edit
+                Edit Customer
               </Button>
               <Button
                 variant="outline"
