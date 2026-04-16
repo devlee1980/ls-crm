@@ -22,7 +22,7 @@ export default async function ProductsPage() {
         subtitle="Manage your product catalog used across forecasts"
       />
       <main className="flex-1 p-6">
-        <ProductsTable initialProducts={products} />
+        <ProductsTable initialProducts={products} division={division} />
       </main>
     </div>
   );

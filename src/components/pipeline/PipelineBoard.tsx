@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatDate, formatCurrency } from "@/lib/formatters";
+import { formatDate, formatCurrency, divisionCurrency, type CurrencyCode } from "@/lib/formatters";
 import { DealForm } from "./DealForm";
 
 export type PipelineStage = "LEAD" | "QUALIFIED" | "PROPOSAL" | "NEGOTIATION" | "WON" | "LOST";
@@ -47,6 +47,7 @@ interface PipelineBoardProps {
   initialDeals: PipelineDeal[];
   customers: { id: string; name: string }[];
   reps: { id: string; name: string }[];
+  division?: string | null;
 }
 
 const STAGES: { id: PipelineStage; label: string; color: string; headerColor: string; probability: number }[] = [
@@ -58,8 +59,9 @@ const STAGES: { id: PipelineStage; label: string; color: string; headerColor: st
   { id: "LOST",        label: "Lost",        color: "border-t-destructive", headerColor: "bg-red-50 text-destructive",    probability: 0 },
 ];
 
-export function PipelineBoard({ initialDeals, customers, reps }: PipelineBoardProps) {
+export function PipelineBoard({ initialDeals, customers, reps, division }: PipelineBoardProps) {
   const [deals, setDeals] = useState<PipelineDeal[]>(initialDeals);
+  const currency = divisionCurrency(division);
   const [formOpen, setFormOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<PipelineDeal | null>(null);
 
@@ -117,12 +119,12 @@ export function PipelineBoard({ initialDeals, customers, reps }: PipelineBoardPr
       <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/40 rounded-xl border">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Total Pipeline:</span>
-          <span className="font-semibold text-primary">{formatCurrency(totalPipelineValue)}</span>
+          <span className="font-semibold text-primary">{formatCurrency(totalPipelineValue, currency)}</span>
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Weighted Value:</span>
-          <span className="font-semibold">{formatCurrency(weightedValue)}</span>
+          <span className="font-semibold">{formatCurrency(weightedValue, currency)}</span>
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-2">
@@ -151,7 +153,7 @@ export function PipelineBoard({ initialDeals, customers, reps }: PipelineBoardPr
                 <span className="opacity-70">{stageDeals.length}</span>
               </div>
               {stageValue > 0 && (
-                <p className="text-xs text-muted-foreground px-1">{formatCurrency(stageValue)}</p>
+                <p className="text-xs text-muted-foreground px-1">{formatCurrency(stageValue, currency)}</p>
               )}
 
               {/* Cards */}
@@ -173,6 +175,7 @@ export function PipelineBoard({ initialDeals, customers, reps }: PipelineBoardPr
                       onMove={handleMove}
                       onEdit={openEdit}
                       onDelete={handleDelete}
+                      currency={currency}
                     />
                   ))
                 )}
@@ -189,6 +192,7 @@ export function PipelineBoard({ initialDeals, customers, reps }: PipelineBoardPr
         deal={editingDeal}
         customers={customers}
         reps={reps}
+        currency={currency}
       />
     </>
   );
@@ -201,6 +205,7 @@ function DealCard({
   onMove,
   onEdit,
   onDelete,
+  currency,
 }: {
   deal: PipelineDeal;
   stages: typeof STAGES;
@@ -208,6 +213,7 @@ function DealCard({
   onMove: (id: string, stage: PipelineStage) => void;
   onEdit: (deal: PipelineDeal) => void;
   onDelete: (id: string) => void;
+  currency: CurrencyCode;
 }) {
   return (
     <Card className="border shadow-sm bg-background hover:shadow-md transition-shadow">
@@ -242,7 +248,7 @@ function DealCard({
         {deal.value > 0 && (
           <div className="flex items-center gap-1 text-xs text-primary font-semibold mb-1">
             <DollarSign className="h-3 w-3" />
-            {formatCurrency(deal.value)}
+            {formatCurrency(deal.value, currency)}
           </div>
         )}
 

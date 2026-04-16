@@ -10,25 +10,28 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency, type CurrencyCode } from "@/lib/formatters";
 
 interface RevenueChartProps {
   data: { period: string; revenue: number }[];
+  division?: string | null;
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+function CustomTooltip({ active, payload, label, currency }: { active?: boolean; payload?: { value: number }[]; label?: string; currency: CurrencyCode }) {
   if (active && payload?.length) {
     return (
       <div className="bg-background border rounded-lg shadow-lg p-3">
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-sm text-primary font-bold">{formatCurrency(payload[0].value)}</p>
+        <p className="text-sm text-primary font-bold">{formatCurrency(payload[0].value, currency)}</p>
       </div>
     );
   }
   return null;
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function RevenueChart({ data, division }: RevenueChartProps) {
+  const currency = divisionCurrency(division);
+  const currencySymbol = currency === "CAD" ? "CA$" : "$";
   return (
     <Card className="border shadow-sm">
       <CardHeader className="pb-2">
@@ -51,10 +54,10 @@ export function RevenueChart({ data }: RevenueChartProps) {
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" />
               <XAxis dataKey="period" tick={{ fontSize: 12 }} />
               <YAxis
-                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                tickFormatter={(v) => `${currencySymbol}${(v / 1000).toFixed(0)}k`}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
               <Area
                 type="monotone"
                 dataKey="revenue"

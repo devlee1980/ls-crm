@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Plus, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency, formatDate, divisionCurrency } from "@/lib/formatters";
 import type { ForecastItem } from "../CustomerDetail";
 
 const statusVariant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -18,10 +18,13 @@ const statusVariant: Record<string, "default" | "secondary" | "outline" | "destr
 export function ForecastsTab({
   customerId,
   initialForecasts,
+  division,
 }: {
   customerId: string;
   initialForecasts: ForecastItem[];
+  division?: string | null;
 }) {
+  const currency = divisionCurrency(division);
   return (
     <Card className="border shadow-sm">
       <CardContent className="p-5 space-y-4">
@@ -60,7 +63,7 @@ export function ForecastsTab({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold">{formatCurrency(forecast.totalAmount)}</span>
+                  <span className="font-semibold">{formatCurrency(forecast.totalAmount, currency)}</span>
                   <Link href={`/forecast/${forecast.id}`}>
                     <Button size="icon" variant="ghost">
                       <ExternalLink className="h-3.5 w-3.5" />

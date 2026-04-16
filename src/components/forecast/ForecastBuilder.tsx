@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Calculator } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 
 const LITERS_PER_GALLON = 3.78541;
 
@@ -156,6 +156,7 @@ export function ForecastBuilder({
 }: ForecastBuilderProps) {
   const isCanada = division === "LS_CANADA";
   const volumeLabel = isCanada ? "$/L" : "$/Gal";
+  const currency = divisionCurrency(division);
 
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
   const [startMonth, setStartMonth] = useState(todayYearMonth);
@@ -383,7 +384,7 @@ export function ForecastBuilder({
                         const ppv = productPricePerVolume(p, isCanada);
                         const displayPrice = ppv
                           ? `${volumeLabel} ${parseFloat(ppv).toFixed(4)}`
-                          : formatCurrency(p.unitPrice);
+                          : formatCurrency(p.unitPrice, currency);
                         return (
                           <SelectItem key={p.id} value={p.id}>
                             <div className="flex flex-col py-0.5">
@@ -436,7 +437,7 @@ export function ForecastBuilder({
                       />
                       {computedUnitPrice !== null && computedUnitPrice > 0 && (
                         <p className="text-[10px] text-muted-foreground text-right whitespace-nowrap">
-                          {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
+                          {formatCurrency(computedUnitPrice, currency)}/{row.packSize || "unit"}
                         </p>
                       )}
                     </div>
@@ -499,7 +500,7 @@ export function ForecastBuilder({
                 <div className="flex items-center justify-between px-3 py-2 border-t border-border/60 bg-muted/20">
                   <span className="text-xs text-muted-foreground font-medium">Row Total</span>
                   <span className="text-sm font-semibold">
-                    {rowTotal > 0 ? formatCurrency(rowTotal) : <span className="text-muted-foreground font-normal">—</span>}
+                    {rowTotal > 0 ? formatCurrency(rowTotal, currency) : <span className="text-muted-foreground font-normal">—</span>}
                   </span>
                 </div>
               </div>
@@ -535,7 +536,7 @@ export function ForecastBuilder({
                           style={{ minWidth: 72 }}
                         >
                           {total > 0 ? (
-                            <span className="font-semibold">{formatCurrency(total)}</span>
+                            <span className="font-semibold">{formatCurrency(total, currency)}</span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
@@ -669,7 +670,7 @@ export function ForecastBuilder({
                               const ppv = productPricePerVolume(p, isCanada);
                               const displayPrice = ppv
                                 ? `${volumeLabel} ${parseFloat(ppv).toFixed(4)}`
-                                : formatCurrency(p.unitPrice);
+                                : formatCurrency(p.unitPrice, currency);
                               return (
                                 <SelectItem key={p.id} value={p.id}>
                                   <div className="flex flex-col py-0.5">
@@ -730,7 +731,7 @@ export function ForecastBuilder({
                         />
                         {computedUnitPrice !== null && computedUnitPrice > 0 && (
                           <p className="text-[10px] text-muted-foreground text-right pr-1 whitespace-nowrap">
-                            {formatCurrency(computedUnitPrice)}/{row.packSize || "unit"}
+                            {formatCurrency(computedUnitPrice, currency)}/{row.packSize || "unit"}
                           </p>
                         )}
                       </div>
@@ -777,7 +778,7 @@ export function ForecastBuilder({
                       style={{ minWidth: 120 }}
                     >
                       {rowTotal > 0 ? (
-                        formatCurrency(rowTotal)
+                        formatCurrency(rowTotal, currency)
                       ) : (
                         <span className="text-muted-foreground font-normal">—</span>
                       )}
@@ -804,7 +805,7 @@ export function ForecastBuilder({
                       style={{ minWidth: 84 }}
                     >
                       {total > 0 ? (
-                        <span className="font-semibold">{formatCurrency(total)}</span>
+                        <span className="font-semibold">{formatCurrency(total, currency)}</span>
                       ) : (
                         <span className="text-muted-foreground font-normal">—</span>
                       )}
@@ -815,7 +816,7 @@ export function ForecastBuilder({
                   className="sticky right-0 z-10 bg-muted/60 px-3 py-3 text-right text-sm"
                   style={{ minWidth: 120 }}
                 >
-                  {formatCurrency(grandTotal)}
+                  {formatCurrency(grandTotal, currency)}
                 </td>
               </tr>
             </tbody>
@@ -830,7 +831,7 @@ export function ForecastBuilder({
         <div className="flex items-center gap-3">
           <Calculator className="h-5 w-5 text-primary" />
           <span className="text-base font-semibold">18-Month Total:</span>
-          <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
+          <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal, currency)}</span>
         </div>
         <div className="flex gap-3 sm:justify-end">
           <Button type="button" variant="outline" size="lg" onClick={onCancel} disabled={saving} className="flex-1 sm:flex-none">

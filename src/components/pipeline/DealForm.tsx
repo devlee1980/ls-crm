@@ -23,6 +23,7 @@ interface DealFormProps {
   deal?: PipelineDeal | null;
   customers: { id: string; name: string }[];
   reps: { id: string; name: string }[];
+  currency?: "USD" | "CAD";
 }
 
 const STAGE_OPTIONS: { value: PipelineStage; label: string; probability: number }[] = [
@@ -45,7 +46,7 @@ const emptyForm = {
   notes: "",
 };
 
-export function DealForm({ open, onClose, onSaved, deal, customers, reps }: DealFormProps) {
+export function DealForm({ open, onClose, onSaved, deal, customers, reps, currency = "USD" }: DealFormProps) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -155,7 +156,7 @@ export function DealForm({ open, onClose, onSaved, deal, customers, reps }: Deal
             </div>
 
             <div className="space-y-1">
-              <Label>Deal Value ($)</Label>
+              <Label>Deal Value ({currency})</Label>
               <Input
                 type="number"
                 min="0"

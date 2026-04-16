@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, CheckSquare } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 
 interface KPIs {
   customerCount: number;
@@ -9,7 +9,8 @@ interface KPIs {
   openActionCount: number;
 }
 
-export function DashboardKPIs({ kpis }: { kpis: KPIs }) {
+export function DashboardKPIs({ kpis, division }: { kpis: KPIs; division?: string | null }) {
+  const currency = divisionCurrency(division);
   const cards = [
     {
       label: "Total Customers",
@@ -27,7 +28,7 @@ export function DashboardKPIs({ kpis }: { kpis: KPIs }) {
     },
     {
       label: "Total Revenue",
-      value: formatCurrency(kpis.totalRevenue),
+      value: formatCurrency(kpis.totalRevenue, currency),
       icon: DollarSign,
       color: "text-emerald-600",
       bg: "bg-emerald-50",

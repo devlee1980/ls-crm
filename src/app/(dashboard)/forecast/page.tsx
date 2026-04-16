@@ -27,7 +27,7 @@ export default async function ForecastPage() {
         subtitle="Build and manage sales forecasts by customer and product"
       />
       <main className="flex-1 p-6">
-        <ForecastList initialForecasts={forecasts} />
+        <ForecastList initialForecasts={forecasts} division={division} />
       </main>
     </div>
   );

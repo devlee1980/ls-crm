@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Search, TrendingUp, ExternalLink, Trash2 } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 
 interface Forecast {
@@ -38,9 +38,12 @@ interface Forecast {
 
 export function ForecastList({
   initialForecasts,
+  division,
 }: {
   initialForecasts: Forecast[];
+  division?: string | null;
 }) {
+  const currency = divisionCurrency(division);
   const [forecasts, setForecasts] = useState(initialForecasts);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -84,7 +87,7 @@ export function ForecastList({
         <Card className="border shadow-sm">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Forecasted</p>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(totalForecast)}</p>
+            <p className="text-2xl font-bold text-primary">{formatCurrency(totalForecast, currency)}</p>
           </CardContent>
         </Card>
         <Card className="border shadow-sm">
@@ -162,7 +165,7 @@ export function ForecastList({
                     <TableCell className="font-medium">{f.customer.name}</TableCell>
                     <TableCell>{f.period}</TableCell>
                     <TableCell className="text-muted-foreground">{f._count.items} products</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(f.totalAmount)}</TableCell>
+                    <TableCell className="font-semibold">{formatCurrency(f.totalAmount, currency)}</TableCell>
                     <TableCell>
                       <Select
                         value={f.status}

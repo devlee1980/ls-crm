@@ -78,8 +78,10 @@ interface DealEmailData {
   assignedRep: { name: string } | null;
 }
 
-export function dealCreatedEmail(deal: DealEmailData): { subject: string; html: string } {
+export function dealCreatedEmail(deal: DealEmailData, division?: string | null): { subject: string; html: string } {
   const subject = `New Pipeline Deal: ${deal.title}`;
+  const currency = division === "LS_CANADA" ? "CAD" : "USD";
+  const formattedValue = new Intl.NumberFormat(currency === "CAD" ? "en-CA" : "en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(deal.value);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
   const dealUrl = `${appUrl}/pipeline`;
@@ -90,7 +92,7 @@ export function dealCreatedEmail(deal: DealEmailData): { subject: string; html: 
     <table cellpadding="0" cellspacing="0" width="100%">
       ${field("Deal", deal.title)}
       ${field("Stage", badge(deal.stage))}
-      ${field("Value", `$${deal.value.toLocaleString()}`)}
+      ${field("Value", formattedValue)}
       ${field("Probability", `${deal.probability}%`)}
       ${field("Customer", deal.customer?.name ?? "—")}
       ${field("Assigned Rep", deal.assignedRep?.name ?? "—")}
@@ -107,9 +109,12 @@ export function dealCreatedEmail(deal: DealEmailData): { subject: string; html: 
 
 export function dealStageUpdatedEmail(
   deal: DealEmailData,
-  previousStage: string
+  previousStage: string,
+  division?: string | null
 ): { subject: string; html: string } {
   const subject = `Pipeline Update: ${deal.title} moved to ${deal.stage}`;
+  const currency = division === "LS_CANADA" ? "CAD" : "USD";
+  const formattedValue = new Intl.NumberFormat(currency === "CAD" ? "en-CA" : "en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(deal.value);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
   const dealUrl = `${appUrl}/pipeline`;
@@ -121,7 +126,7 @@ export function dealStageUpdatedEmail(
       ${field("Deal", deal.title)}
       ${field("Previous Stage", badge(previousStage))}
       ${field("New Stage", badge(deal.stage))}
-      ${field("Value", `$${deal.value.toLocaleString()}`)}
+      ${field("Value", formattedValue)}
       ${field("Probability", `${deal.probability}%`)}
       ${field("Customer", deal.customer?.name ?? "—")}
       ${field("Assigned Rep", deal.assignedRep?.name ?? "—")}

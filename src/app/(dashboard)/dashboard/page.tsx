@@ -162,23 +162,24 @@ export default async function DashboardPage() {
         subtitle="Here's what's happening with your accounts today."
       />
       <main className="flex-1 p-6 space-y-6">
-        <DashboardKPIs kpis={data.kpis} />
+        <DashboardKPIs kpis={data.kpis} division={division} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <RevenueChart data={data.monthlyRevenue} />
+            <RevenueChart data={data.monthlyRevenue} division={division} />
           </div>
           <PipelineSummary
             stages={data.pipeline.stages}
             totalValue={data.pipeline.totalValue}
             weightedValue={data.pipeline.weightedValue}
             openDeals={data.pipeline.openDeals}
+            division={division}
           />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <UpcomingActions actions={data.recentActions} />
           </div>
-          <TopCustomers customers={data.topCustomers} />
+          <TopCustomers customers={data.topCustomers} division={division} />
         </div>
       </main>
     </div>

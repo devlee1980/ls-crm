@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Users, ExternalLink, Trash2, Pencil } from "lucide-react";
 import { StarRating } from "@/components/ui/StarRating";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 import { CustomerForm } from "./CustomerForm";
 
@@ -80,6 +80,7 @@ export function CustomersTable({
   userRole?: string;
   userDivision?: string | null;
 }) {
+  const currency = divisionCurrency(userDivision);
   const [customers, setCustomers] = useState(initialCustomers);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -218,7 +219,7 @@ export function CustomersTable({
                   <TableCell>
                     <StarRating rating={c.rating} size="sm" />
                   </TableCell>
-                  <TableCell className="font-medium">{formatCurrency(c.totalRevenue)}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(c.totalRevenue, currency)}</TableCell>
                   <TableCell>
                     <div className="text-xs space-y-0.5">
                       <p>

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/ui/StarRating";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -13,7 +13,8 @@ interface Customer {
   totalRevenue: number;
 }
 
-export function TopCustomers({ customers }: { customers: Customer[] }) {
+export function TopCustomers({ customers, division }: { customers: Customer[]; division?: string | null }) {
+  const currency = divisionCurrency(division);
   return (
     <Card className="border shadow-sm">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -42,7 +43,7 @@ export function TopCustomers({ customers }: { customers: Customer[] }) {
                 <StarRating rating={c.rating} size="sm" />
               </div>
               <div className="text-right ml-2 shrink-0">
-                <p className="text-sm font-semibold">{formatCurrency(c.totalRevenue)}</p>
+                <p className="text-sm font-semibold">{formatCurrency(c.totalRevenue, currency)}</p>
                 <Badge
                   variant={c.status === "ACTIVE" ? "default" : "secondary"}
                   className="text-xs"

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, DollarSign, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency, formatDate, divisionCurrency } from "@/lib/formatters";
 import {
   BarChart,
   Bar,
@@ -32,11 +32,15 @@ export function RevenueTab({
   customerId,
   initialRecords,
   products,
+  division,
 }: {
   customerId: string;
   initialRecords: RevenueRecord[];
   products: Product[];
+  division?: string | null;
 }) {
+  const currency = divisionCurrency(division);
+  const currencySymbol = currency === "CAD" ? "CA$" : "$";
   const [records, setRecords] = useState(initialRecords);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function RevenueTab({
           <div>
             <h3 className="font-semibold">Revenue History</h3>
             <p className="text-sm text-muted-foreground">
-              Total: <span className="font-semibold text-primary">{formatCurrency(totalRevenue)}</span>
+              Total: <span className="font-semibold text-primary">{formatCurrency(totalRevenue, currency)}</span>
             </p>
           </div>
           <Button size="sm" onClick={() => setDialogOpen(true)}>
@@ -96,9 +100,9 @@ export function RevenueTab({
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.922 0 0)" />
               <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `${currencySymbol}${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v) => [formatCurrency(Number(v)), "Revenue"]}
+                formatter={(v) => [formatCurrency(Number(v), currency), "Revenue"]}
               />
               <Bar dataKey="revenue" fill="oklch(0.44 0.15 155)" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -126,7 +130,7 @@ export function RevenueTab({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{formatCurrency(record.totalAmount)}</span>
+                    <span className="font-semibold">{formatCurrency(record.totalAmount, currency)}</span>
                     {expandedId === record.id ? (
                       <ChevronUp className="h-4 w-4" />
                     ) : (
@@ -150,8 +154,8 @@ export function RevenueTab({
                           <tr key={item.id}>
                             <td className="py-1">{item.product.name}</td>
                             <td className="text-right">{item.quantity}</td>
-                            <td className="text-right">{formatCurrency(item.unitPrice)}</td>
-                            <td className="text-right font-medium">{formatCurrency(item.lineTotal)}</td>
+                            <td className="text-right">{formatCurrency(item.unitPrice, currency)}</td>
+                            <td className="text-right font-medium">{formatCurrency(item.lineTotal, currency)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -192,7 +196,7 @@ export function RevenueTab({
                   />
                 </div>
                 <div className="space-y-1 col-span-2">
-                  <Label>Total Amount ($) *</Label>
+                  <Label>Total Amount ({currency}) *</Label>
                   <Input
                     type="number"
                     min="0"

@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     const { subject, html } = dealCreatedEmail({
       ...deal,
       expectedClose: deal.expectedClose ? deal.expectedClose.toISOString() : null,
-    });
+    }, dealDivision);
     return sendEmail({ from: "info@ls-nexus.com", to, subject, html });
   }).catch((err) => console.error("[pipeline] email error:", err));
 

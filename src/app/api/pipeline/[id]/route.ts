@@ -96,10 +96,27 @@ export async function PUT(req: Request, { params }: Params) {
           ...deal,
           expectedClose: deal.expectedClose ? deal.expectedClose.toISOString() : null,
         },
-        current.stage
+        current.stage,
+        dealDivision
       );
       return sendEmail({ from: "info@ls-nexus.com", to, subject, html });
     }).catch((err) => console.error("[pipeline] stage email error:", err));
+
+    // When a deal transitions to WON, auto-create a revenue record for the customer
+    if (deal.stage === "WON" && deal.customerId && deal.value > 0) {
+      const now = new Date();
+      const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      prisma.revenueRecord.create({
+        data: {
+          customerId: deal.customerId,
+          repId: deal.assignedRepId ?? null,
+          period,
+          date: now,
+          totalAmount: deal.value,
+          notes: `Auto-created from won pipeline deal: ${deal.title}`,
+        },
+      }).catch((err) => console.error("[pipeline] revenue record error:", err));
+    }
   }
 
   return NextResponse.json(deal);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Kanban, ArrowRight, TrendingUp } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 interface StageSummary {
@@ -19,6 +19,7 @@ interface PipelineSummaryProps {
   totalValue: number;
   weightedValue: number;
   openDeals: number;
+  division?: string | null;
 }
 
 const STAGE_META: Record<string, { label: string; color: string; badgeClass: string }> = {
@@ -30,7 +31,8 @@ const STAGE_META: Record<string, { label: string; color: string; badgeClass: str
   LOST:        { label: "Lost",        color: "bg-destructive", badgeClass: "bg-red-50 text-destructive border-red-200" },
 };
 
-export function PipelineSummary({ stages, totalValue, weightedValue, openDeals }: PipelineSummaryProps) {
+export function PipelineSummary({ stages, totalValue, weightedValue, openDeals, division }: PipelineSummaryProps) {
+  const currency = divisionCurrency(division);
   const activeStages = stages.filter((s) => s.stage !== "LOST" && s.count > 0);
   const maxValue = Math.max(...activeStages.map((s) => s.value), 1);
 
@@ -62,11 +64,11 @@ export function PipelineSummary({ stages, totalValue, weightedValue, openDeals }
           </div>
           <div className="bg-muted/50 rounded-lg p-2.5 text-center">
             <p className="text-xs text-muted-foreground mb-0.5">Total Value</p>
-            <p className="font-bold text-sm leading-none">{formatCurrency(totalValue)}</p>
+            <p className="font-bold text-sm leading-none">{formatCurrency(totalValue, currency)}</p>
           </div>
           <div className="bg-primary/10 rounded-lg p-2.5 text-center">
             <p className="text-xs text-muted-foreground mb-0.5">Weighted</p>
-            <p className="font-bold text-sm leading-none text-primary">{formatCurrency(weightedValue)}</p>
+            <p className="font-bold text-sm leading-none text-primary">{formatCurrency(weightedValue, currency)}</p>
           </div>
         </div>
 
@@ -86,7 +88,7 @@ export function PipelineSummary({ stages, totalValue, weightedValue, openDeals }
                     <span className="text-xs text-muted-foreground">{stage.count} deal{stage.count !== 1 ? "s" : ""}</span>
                   </div>
                   {stage.value > 0 && (
-                    <span className="text-xs font-medium">{formatCurrency(stage.value)}</span>
+                    <span className="text-xs font-medium">{formatCurrency(stage.value, currency)}</span>
                   )}
                 </div>
                 {stage.stage !== "LOST" && (

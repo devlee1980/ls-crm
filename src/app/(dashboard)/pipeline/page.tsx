@@ -55,6 +55,7 @@ export default async function PipelinePage() {
           initialDeals={serializedDeals as never}
           customers={customers}
           reps={reps}
+          division={division}
         />
       </main>
     </div>

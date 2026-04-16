@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Search, Pencil, Trash2, Package } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, divisionCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 import { ProductForm } from "./ProductForm";
 
@@ -40,7 +40,8 @@ interface Product {
   _count: { forecastItems: number };
 }
 
-export function ProductsTable({ initialProducts }: { initialProducts: Product[] }) {
+export function ProductsTable({ initialProducts, division }: { initialProducts: Product[]; division?: string | null }) {
+  const currency = divisionCurrency(division);
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -175,7 +176,7 @@ export function ProductsTable({ initialProducts }: { initialProducts: Product[] 
                     </div>
                   </TableCell>
                   <TableCell>{product.category ?? "—"}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(product.unitPrice)}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(product.unitPrice, currency)}</TableCell>
                   <TableCell>{product.uom}</TableCell>
                   <TableCell>
                     <Badge variant={product.isActive ? "default" : "secondary"}>

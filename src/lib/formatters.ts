@@ -1,7 +1,13 @@
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+export type CurrencyCode = "USD" | "CAD";
+
+export function divisionCurrency(division?: string | null): CurrencyCode {
+  return division === "LS_CANADA" ? "CAD" : "USD";
+}
+
+export function formatCurrency(amount: number, currency: CurrencyCode = "USD"): string {
+  return new Intl.NumberFormat(currency === "CAD" ? "en-CA" : "en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);

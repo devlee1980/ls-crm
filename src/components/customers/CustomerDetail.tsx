@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "@/components/ui/StarRating";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/formatters";
+import { formatCurrency, formatDate, formatPercent, divisionCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
 import {
   MapPin,
@@ -156,6 +156,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
   const [customerData, setCustomerData] = useState(customer);
 
   const totalRevenue = customer.revenueRecords.reduce((s, r) => s + r.totalAmount, 0);
+  const currency = divisionCurrency(customer.division);
 
   async function handleRatingChange(newRating: number) {
     setRating(newRating);
@@ -256,7 +257,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
           <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(totalRevenue)}</p>
+              <p className="text-lg font-bold text-primary">{formatCurrency(totalRevenue, currency)}</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-xs text-muted-foreground mb-1">Wholesale</p>
@@ -337,6 +338,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
             customerId={customer.id}
             initialRecords={customer.revenueRecords}
             products={products}
+            division={customer.division}
           />
         </TabsContent>
 
@@ -349,7 +351,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
         </TabsContent>
 
         <TabsContent value="forecasts">
-          <ForecastsTab customerId={customer.id} initialForecasts={customer.forecasts} />
+          <ForecastsTab customerId={customer.id} initialForecasts={customer.forecasts} division={customer.division} />
         </TabsContent>
 
         <TabsContent value="quotes">
