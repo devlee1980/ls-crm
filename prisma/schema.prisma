@@ -22,7 +22,7 @@ model User {
   isActive               Boolean   @default(true)
   loginAttempts          Int       @default(0)
   lockedUntil            DateTime?
-  sessionTimeoutMinutes  Int       @default(5)
+  sessionTimeoutMinutes  Int       @default(480)
 
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?

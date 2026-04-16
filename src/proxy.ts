@@ -14,7 +14,10 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isLoggedIn = !!req.auth;
-  const isAuthRoute = pathname.startsWith("/login");
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password");
 
   let response: NextResponse;
 

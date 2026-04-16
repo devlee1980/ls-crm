@@ -32,7 +32,7 @@ export function SessionTimeoutWatcher() {
     showWarningRef.current = showWarning;
   }, [showWarning]);
 
-  const timeoutMs = ((session?.user as { sessionTimeoutMinutes?: number })?.sessionTimeoutMinutes ?? 5) * 60_000;
+  const timeoutMs = ((session?.user as { sessionTimeoutMinutes?: number })?.sessionTimeoutMinutes ?? 480) * 60_000;
 
   const clearTimers = useCallback(() => {
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
