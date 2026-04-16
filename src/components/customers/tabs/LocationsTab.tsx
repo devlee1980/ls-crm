@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, MapPin, Trash2, Phone } from "lucide-react";
+import { Plus, MapPin, Trash2, Phone, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { LocationItem } from "../CustomerDetail";
 
@@ -47,23 +47,68 @@ export function LocationsTab({
 
   const [locations, setLocations] = useState(initialLocations);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    const res = await fetch(`/api/customers/${customerId}/locations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, phone: form.phone || null, address2: form.address2 || null }),
+  function openAdd() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  }
+
+  function openEdit(loc: LocationItem) {
+    setEditingId(loc.id);
+    setForm({
+      label: loc.label,
+      address1: loc.address1,
+      address2: loc.address2 ?? "",
+      city: loc.city,
+      state: loc.state,
+      zip: loc.zip,
+      country: loc.country,
+      phone: loc.phone ?? "",
+      isPrimary: loc.isPrimary,
     });
-    if (res.ok) {
-      const loc = await res.json();
-      setLocations((prev) => [loc, ...prev.map((l) => (form.isPrimary ? { ...l, isPrimary: false } : l))]);
-      toast.success("Location added");
-      setDialogOpen(false);
-      setForm(emptyForm);
+    setDialogOpen(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = { ...form, phone: form.phone || null, address2: form.address2 || null };
+
+    if (editingId) {
+      const res = await fetch(`/api/customers/${customerId}/locations?locationId=${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setLocations((prev) =>
+          prev.map((l) =>
+            l.id === editingId ? updated : form.isPrimary ? { ...l, isPrimary: false } : l
+          )
+        );
+        toast.success("Location updated");
+        setDialogOpen(false);
+      } else {
+        toast.error("Failed to update location");
+      }
     } else {
-      toast.error("Failed to add location");
+      const res = await fetch(`/api/customers/${customerId}/locations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const loc = await res.json();
+        setLocations((prev) => [loc, ...prev.map((l) => (form.isPrimary ? { ...l, isPrimary: false } : l))]);
+        toast.success("Location added");
+        setDialogOpen(false);
+        setForm(emptyForm);
+      } else {
+        toast.error("Failed to add location");
+      }
     }
   }
 
@@ -85,7 +130,7 @@ export function LocationsTab({
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">Physical Locations ({locations.length})</h3>
-          <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Button size="sm" onClick={openAdd}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Add Location
           </Button>
@@ -106,14 +151,24 @@ export function LocationsTab({
                     <span className="font-medium text-sm">{loc.label}</span>
                     {loc.isPrimary && <Badge className="text-xs">Primary</Badge>}
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDelete(loc.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      onClick={() => openEdit(loc)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDelete(loc.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-sm">{loc.address1}</p>
                 {loc.address2 && <p className="text-sm">{loc.address2}</p>}
@@ -132,12 +187,12 @@ export function LocationsTab({
           </div>
         )}
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingId(null); }}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add Location</DialogTitle>
+              <DialogTitle>{editingId ? "Edit Location" : "Add Location"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAdd} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1 col-span-2">
                   <Label>Location Label</Label>
@@ -217,7 +272,7 @@ export function LocationsTab({
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Add Location</Button>
+                <Button type="submit">{editingId ? "Save Changes" : "Add Location"}</Button>
               </div>
             </form>
           </DialogContent>

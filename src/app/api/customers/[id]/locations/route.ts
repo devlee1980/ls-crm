@@ -40,6 +40,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(location, { status: 201 });
 }
 
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id: customerId } = await params;
+  const { searchParams } = new URL(req.url);
+  const locationId = searchParams.get("locationId");
+  if (!locationId) return NextResponse.json({ error: "locationId required" }, { status: 400 });
+
+  const body = await req.json();
+  const parsed = locationSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  if (parsed.data.isPrimary) {
+    await prisma.customerLocation.updateMany({
+      where: { customerId },
+      data: { isPrimary: false },
+    });
+  }
+
+  const location = await prisma.customerLocation.update({
+    where: { id: locationId },
+    data: parsed.data,
+  });
+
+  return NextResponse.json(location);
+}
+
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
