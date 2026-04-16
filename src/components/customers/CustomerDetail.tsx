@@ -57,6 +57,7 @@ interface CustomerDetailProps {
     retailPercent: number;
     notes: string | null;
     website: string | null;
+    division: string | null;
     assignedRep: { id: string; name: string } | null;
     assignedRepId: string | null;
     locations: LocationItem[];
@@ -324,7 +325,7 @@ export function CustomerDetail({ customer, reps, products }: CustomerDetailProps
         </TabsList>
 
         <TabsContent value="locations">
-          <LocationsTab customerId={customer.id} initialLocations={customer.locations} />
+          <LocationsTab customerId={customer.id} initialLocations={customer.locations} customerDivision={customer.division} />
         </TabsContent>
 
         <TabsContent value="contacts">

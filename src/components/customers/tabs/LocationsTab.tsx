@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +25,13 @@ const CANADIAN_PROVINCES = [
 export function LocationsTab({
   customerId,
   initialLocations,
+  customerDivision,
 }: {
   customerId: string;
   initialLocations: LocationItem[];
+  customerDivision?: string | null;
 }) {
-  const { data: session } = useSession();
-  const isCanada = session?.user?.division === "LS_CANADA";
+  const isCanada = customerDivision === "LS_CANADA";
 
   const emptyForm = {
     label: "Main",
