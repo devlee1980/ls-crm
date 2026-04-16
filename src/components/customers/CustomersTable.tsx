@@ -28,13 +28,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -44,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Users, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, Search, Users, ExternalLink, Trash2, Pencil } from "lucide-react";
 import { StarRating } from "@/components/ui/StarRating";
 import { formatCurrency } from "@/lib/formatters";
 import { toast } from "sonner";
@@ -91,6 +84,7 @@ export function CustomersTable({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -136,6 +130,24 @@ export function CustomersTable({
     }
   }
 
+  async function handleUpdate(data: Partial<Customer>) {
+    if (!editCustomer) return;
+    const res = await fetch(`/api/customers/${editCustomer.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setCustomers((prev) => prev.map((c) => (c.id === editCustomer.id ? { ...c, ...updated } : c)));
+      toast.success("Customer updated");
+      setEditCustomer(null);
+      setDialogOpen(false);
+    } else {
+      toast.error("Failed to update customer");
+    }
+  }
+
   return (
     <Card className="border shadow-sm">
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-4">
@@ -177,7 +189,7 @@ export function CustomersTable({
               <TableHead>Revenue</TableHead>
               <TableHead>Channel Split</TableHead>
               <TableHead>Rep</TableHead>
-              <TableHead className="w-[50px]" />
+              <TableHead className="w-[110px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -223,37 +235,32 @@ export function CustomersTable({
                     {c.assignedRep?.name ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className=""
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          render={
-                            <Link href={`/customers/${c.id}`} className="flex items-center gap-2">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                              View
-                            </Link>
-                          }
-                        />
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteId(c.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/customers/${c.id}`}
+                        title="View"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Edit"
+                        onClick={() => { setEditCustomer(c); setDialogOpen(true); }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Delete"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteId(c.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -262,17 +269,18 @@ export function CustomersTable({
         </Table>
       </CardContent>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditCustomer(null); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
+            <DialogTitle>{editCustomer ? "Edit Customer" : "Add New Customer"}</DialogTitle>
           </DialogHeader>
           <CustomerForm
             reps={reps}
             userRole={userRole}
             userDivision={userDivision}
-            onSave={handleCreate}
-            onCancel={() => setDialogOpen(false)}
+            initialData={editCustomer}
+            onSave={editCustomer ? handleUpdate : handleCreate}
+            onCancel={() => { setDialogOpen(false); setEditCustomer(null); }}
           />
         </DialogContent>
       </Dialog>
