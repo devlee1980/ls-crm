@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
     const { subject, html } = passwordResetEmail(resetUrl);
 

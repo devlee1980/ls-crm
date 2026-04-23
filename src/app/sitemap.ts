@@ -4,13 +4,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   return [
     {
-      url: "https://crm.lifescientific.com/",
+      url: "https://www.ls-nexus.com/",
       lastModified: now,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: "https://crm.lifescientific.com/login",
+      url: "https://www.ls-nexus.com/login",
       lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,

@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://crm.lifescientific.com"),
+  metadataBase: new URL("https://www.ls-nexus.com"),
   title: {
     default: "LS Nexus — Life Scientific CRM",
     template: "%s | LS Nexus",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: "LS Nexus",
     title: "LS Nexus — Life Scientific CRM",
     description: "Sales force management platform for Life Scientific.",
-    url: "https://crm.lifescientific.com",
+    url: "https://www.ls-nexus.com",
   },
   twitter: {
     card: "summary_large_image",
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: "https://crm.lifescientific.com",
+    canonical: "https://www.ls-nexus.com",
   },
 };
 
