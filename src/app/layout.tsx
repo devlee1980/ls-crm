@@ -22,8 +22,32 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LS Nexus — LifeScientific CRM",
-  description: "Sales force management platform for LifeScientific",
+  metadataBase: new URL("https://www.ls-nexus.com"),
+  title: {
+    default: "LS Nexus — Life Scientific CRM",
+    template: "%s | LS Nexus",
+  },
+  description: "Sales force management platform for Life Scientific.",
+  applicationName: "LS Nexus",
+  openGraph: {
+    type: "website",
+    siteName: "LS Nexus",
+    title: "LS Nexus — Life Scientific CRM",
+    description: "Sales force management platform for Life Scientific.",
+    url: "https://www.ls-nexus.com",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LS Nexus",
+    description: "Life Scientific CRM",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "https://www.ls-nexus.com",
+  },
 };
 
 export default function RootLayout({
