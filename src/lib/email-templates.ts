@@ -83,7 +83,7 @@ export function dealCreatedEmail(deal: DealEmailData, division?: string | null):
   const currency = division === "LS_CANADA" ? "CAD" : "USD";
   const formattedValue = new Intl.NumberFormat(currency === "CAD" ? "en-CA" : "en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(deal.value);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
   const dealUrl = `${appUrl}/pipeline`;
 
   const body = `
@@ -116,7 +116,7 @@ export function dealStageUpdatedEmail(
   const currency = division === "LS_CANADA" ? "CAD" : "USD";
   const formattedValue = new Intl.NumberFormat(currency === "CAD" ? "en-CA" : "en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(deal.value);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
   const dealUrl = `${appUrl}/pipeline`;
 
   const body = `
@@ -155,7 +155,7 @@ interface ActionItemEmailData {
 export function actionItemCreatedEmail(item: ActionItemEmailData): { subject: string; html: string } {
   const subject = `New Action Item: ${item.title}`;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
   const itemUrl = `${appUrl}/action-items`;
 
   const body = `
@@ -185,7 +185,7 @@ export function actionItemAssignedEmail(
 ): { subject: string; html: string } {
   const subject = `You've been assigned: ${item.title}`;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
   const itemUrl = `${appUrl}/action-items`;
 
   const body = `
@@ -211,7 +211,7 @@ export function actionItemAssignedEmail(
 export function actionItemsDigestEmail(items: ActionItemEmailData[]): { subject: string; html: string } {
   const subject = `Weekly Action Items Digest — ${items.length} Open Item${items.length !== 1 ? "s" : ""}`;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://ls-nexus.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://crm.lifescientific.com";
   const itemsUrl = `${appUrl}/action-items`;
 
   const priorityOrder: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
