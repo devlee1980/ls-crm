@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import QRCode from "qrcode";
@@ -63,36 +63,44 @@ export default function MfaEnrollPage() {
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
+  // Strict-mode dev double-runs effects; this guard prevents two /setup calls
+  // racing each other and leaving the cookie holding a different secret than
+  // the QR code on screen.
+  const initStartedRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    async function init() {
+    if (initStartedRef.current) return;
+    initStartedRef.current = true;
+    const controller = new AbortController();
+
+    (async () => {
       try {
-        const res = await fetch("/api/auth/mfa/setup", { method: "POST" });
+        const res = await fetch("/api/auth/mfa/setup", {
+          method: "POST",
+          signal: controller.signal,
+        });
         const data = await readResponse<SetupResponse>(res);
         if (!res.ok) {
           throw new Error(data.error ?? `Failed to start MFA setup (${res.status})`);
         }
-        if (cancelled) return;
         const dataUrl = await QRCode.toDataURL(data.otpauthUrl, {
           width: 240,
           margin: 1,
         });
-        if (cancelled) return;
         setSecret(data.secret);
         setQrDataUrl(dataUrl);
         setStage("scan");
       } catch (err) {
-        if (cancelled) return;
+        if ((err as Error)?.name === "AbortError") return;
         const message =
           err instanceof Error ? err.message : "Could not start MFA setup.";
         setError(message);
         setStage("scan");
       }
-    }
-    init();
+    })();
+
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, []);
 
