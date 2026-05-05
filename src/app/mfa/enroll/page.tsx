@@ -65,20 +65,17 @@ export default function MfaEnrollPage() {
   const [acknowledged, setAcknowledged] = useState(false);
   // Strict-mode dev double-runs effects; this guard prevents two /setup calls
   // racing each other and leaving the cookie holding a different secret than
-  // the QR code on screen.
+  // the QR code on screen. The ref persists across the strict-mode fake
+  // unmount/remount, so only the first effect kicks off the fetch.
   const initStartedRef = useRef(false);
 
   useEffect(() => {
     if (initStartedRef.current) return;
     initStartedRef.current = true;
-    const controller = new AbortController();
 
     (async () => {
       try {
-        const res = await fetch("/api/auth/mfa/setup", {
-          method: "POST",
-          signal: controller.signal,
-        });
+        const res = await fetch("/api/auth/mfa/setup", { method: "POST" });
         const data = await readResponse<SetupResponse>(res);
         if (!res.ok) {
           throw new Error(data.error ?? `Failed to start MFA setup (${res.status})`);
@@ -91,17 +88,12 @@ export default function MfaEnrollPage() {
         setQrDataUrl(dataUrl);
         setStage("scan");
       } catch (err) {
-        if ((err as Error)?.name === "AbortError") return;
         const message =
           err instanceof Error ? err.message : "Could not start MFA setup.";
         setError(message);
         setStage("scan");
       }
     })();
-
-    return () => {
-      controller.abort();
-    };
   }, []);
 
   async function handleVerify(e: React.FormEvent) {
@@ -115,13 +107,20 @@ export default function MfaEnrollPage() {
         body: JSON.stringify({ code }),
       });
       const data = await readResponse<{ backupCodes: string[] }>(res);
+      if (res.status === 409) {
+        // DB says we're already enrolled; the JWT is stale. The layout will
+        // route us correctly on the next navigation.
+        window.location.href = "/dashboard";
+        return;
+      }
       if (!res.ok) {
         setError(data.error ?? `Could not verify the code (${res.status}).`);
         return;
       }
       setBackupCodes(data.backupCodes ?? []);
-      // Refresh JWT so proxy stops bouncing the user back here.
+      // Refresh the session so the proxy stops bouncing the user back here.
       await update({ mfa: { mfaEnabled: true, mfaVerified: true } });
+      router.refresh();
       setStage("backup");
     } catch (err) {
       const message =
@@ -132,11 +131,13 @@ export default function MfaEnrollPage() {
     }
   }
 
-  async function handleFinish() {
+  function handleFinish() {
     if (!acknowledged) return;
     setStage("done");
-    router.push("/dashboard");
-    router.refresh();
+    // Hard navigation guarantees the freshly-signed JWT cookie is included on
+    // the next request — `router.push` alone has occasionally been observed to
+    // race the Set-Cookie from `update()`.
+    window.location.href = "/dashboard";
   }
 
   function copySecret() {
