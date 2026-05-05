@@ -31,6 +31,25 @@ interface SetupResponse {
   secret: string;
 }
 
+/**
+ * Robust response reader: tries JSON first, falls back to text so a non-JSON
+ * 5xx (e.g. a server stack-trace HTML page) still surfaces a useful message.
+ */
+async function readResponse<T = Record<string, unknown>>(
+  res: Response
+): Promise<T & { error?: string }> {
+  const ct = res.headers.get("content-type") ?? "";
+  if (ct.includes("application/json")) {
+    try {
+      return (await res.json()) as T & { error?: string };
+    } catch {
+      return {} as T & { error?: string };
+    }
+  }
+  const text = await res.text().catch(() => "");
+  return { error: text.slice(0, 200) || res.statusText } as T & { error?: string };
+}
+
 export default function MfaEnrollPage() {
   const router = useRouter();
   const { data: session, update } = useSession();
@@ -50,8 +69,10 @@ export default function MfaEnrollPage() {
     async function init() {
       try {
         const res = await fetch("/api/auth/mfa/setup", { method: "POST" });
-        if (!res.ok) throw new Error("Failed to start MFA setup");
-        const data: SetupResponse = await res.json();
+        const data = await readResponse<SetupResponse>(res);
+        if (!res.ok) {
+          throw new Error(data.error ?? `Failed to start MFA setup (${res.status})`);
+        }
         if (cancelled) return;
         const dataUrl = await QRCode.toDataURL(data.otpauthUrl, {
           width: 240,
@@ -85,17 +106,19 @@ export default function MfaEnrollPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
-      const data = await res.json();
+      const data = await readResponse<{ backupCodes: string[] }>(res);
       if (!res.ok) {
-        setError(data.error ?? "Could not verify the code.");
+        setError(data.error ?? `Could not verify the code (${res.status}).`);
         return;
       }
-      setBackupCodes(data.backupCodes as string[]);
+      setBackupCodes(data.backupCodes ?? []);
       // Refresh JWT so proxy stops bouncing the user back here.
       await update({ mfa: { mfaEnabled: true, mfaVerified: true } });
       setStage("backup");
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Network error. Please try again.";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
