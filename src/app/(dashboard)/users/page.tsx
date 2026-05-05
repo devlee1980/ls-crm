@@ -20,13 +20,19 @@ export default async function UsersPage() {
       region: true,
       isActive: true,
       createdAt: true,
+      mfaEnabled: true,
+      mfaEnrolledAt: true,
       _count: { select: { customers: true, actionItems: true } },
     },
     orderBy: [{ division: "asc" }, { name: "asc" }],
   });
 
   // Serialize dates for client component
-  const users = raw.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }));
+  const users = raw.map((u) => ({
+    ...u,
+    createdAt: u.createdAt.toISOString(),
+    mfaEnrolledAt: u.mfaEnrolledAt?.toISOString() ?? null,
+  }));
 
   return (
     <div className="p-6 space-y-6">

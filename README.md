@@ -47,6 +47,7 @@ Fill in your credentials in `.env`:
 - `DATABASE_URL` — Your Neon PostgreSQL connection string
 - `AUTH_SECRET` — Generate with `openssl rand -base64 32`
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` — Your AWS S3 credentials
+- `MFA_SECRET_KEY` — 32-byte base64 key used to encrypt TOTP secrets at rest. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Treat this like `AUTH_SECRET`: rotating it invalidates every existing TOTP enrollment.
 
 ### 3. Set Up the Database
 
@@ -90,3 +91,59 @@ Deploy to Vercel with your Neon DATABASE_URL and the other env vars set in the V
 | ADMIN   | All customers, forecasts, action items     |
 | MANAGER | All customers, forecasts, action items     |
 | REP     | Only their assigned customers and records  |
+
+## Authentication & MFA
+
+LS Nexus enforces TOTP-based two-factor authentication for **every** account.
+Email domains are not restricted — access is gated entirely by user provisioning
+in `/users` (ADMIN-only).
+
+### How it works
+
+1. On the first sign-in after a user is created, the proxy redirects to
+   `/mfa/enroll`. They scan the QR code with an authenticator app (Google
+   Authenticator, 1Password, Authy, Microsoft Authenticator) and confirm the
+   first 6-digit code.
+2. Ten single-use backup codes are shown once at the end of enrollment. Users
+   should store these somewhere safe (password manager).
+3. On every subsequent sign-in, the user enters email + password and then a
+   6-digit TOTP code (or one backup code).
+4. Failed TOTP / backup-code attempts count toward the same lockout as bad
+   passwords (5 attempts → 15-minute lockout).
+
+### Operations
+
+#### Resetting MFA for a user (Admin)
+
+Open `/users`, click the pencil icon on the user, then **Reset MFA**. They will
+re-enroll on their next sign-in. The previous secret and backup codes are
+deleted immediately.
+
+#### Recovering a locked-out admin
+
+If the only ADMIN loses both their authenticator device and backup codes, an
+operator with database access must clear MFA directly in Postgres:
+
+```sql
+UPDATE users
+SET    "mfaEnabled" = false,
+       "mfaSecret"  = NULL,
+       "mfaEnrolledAt" = NULL,
+       "loginAttempts" = 0,
+       "lockedUntil"   = NULL
+WHERE  email = 'lee.mcduffie@lifescientific.com';
+
+DELETE FROM mfa_backup_codes
+WHERE  "userId" = (SELECT id FROM users WHERE email = 'lee.mcduffie@lifescientific.com');
+```
+
+The admin will then re-enroll on next sign-in.
+
+#### Rotating `MFA_SECRET_KEY`
+
+Rotating this key invalidates every stored TOTP secret (existing enrollments
+will fail). To rotate safely:
+
+1. Run the SQL above for **every** user (or `UPDATE users SET "mfaEnabled"=false, "mfaSecret"=NULL, "mfaEnrolledAt"=NULL` followed by `DELETE FROM mfa_backup_codes`).
+2. Update `MFA_SECRET_KEY` in your environment.
+3. All users will re-enroll on their next sign-in.

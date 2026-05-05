@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 
 interface UserRow {
   id: string;
@@ -22,6 +22,8 @@ interface UserRow {
   division: string | null;
   region: string | null;
   isActive: boolean;
+  mfaEnabled?: boolean;
+  mfaEnrolledAt?: string | null;
 }
 
 interface UserFormProps {
@@ -33,6 +35,8 @@ interface UserFormProps {
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEdit = !!user;
   const [loading, setLoading] = useState(false);
+  const [resettingMfa, setResettingMfa] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState<boolean>(user?.mfaEnabled ?? false);
   const [form, setForm] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -42,6 +46,36 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     region: user?.region ?? "",
     isActive: user?.isActive ?? true,
   });
+
+  async function handleResetMfa() {
+    if (!user) return;
+    if (
+      !confirm(
+        `Reset MFA for ${user.name}? They will be required to enroll a new authenticator app on their next sign-in.`
+      )
+    ) {
+      return;
+    }
+    setResettingMfa(true);
+    try {
+      const res = await fetch("/api/auth/mfa/admin-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Failed to reset MFA.");
+        return;
+      }
+      toast.success("MFA reset. The user will re-enroll on next sign-in.");
+      setMfaEnabled(false);
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setResettingMfa(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +132,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            placeholder="jane@lifescientific.com"
+            placeholder="jane@example.com"
             required
           />
         </div>
@@ -191,6 +225,38 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="rounded-md border p-3 flex items-center gap-3">
+          {mfaEnabled ? (
+            <ShieldCheck className="h-4 w-4 shrink-0 text-green-600" />
+          ) : (
+            <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" />
+          )}
+          <div className="flex-1 text-sm">
+            <p className="font-medium">
+              {mfaEnabled ? "MFA enrolled" : "MFA not enrolled"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {mfaEnabled
+                ? "User will be prompted for a 6-digit code on every sign-in."
+                : "User will be required to enroll on next sign-in."}
+            </p>
+          </div>
+          {mfaEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetMfa}
+              disabled={resettingMfa}
+            >
+              {resettingMfa && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              Reset MFA
+            </Button>
+          )}
         </div>
       )}
 

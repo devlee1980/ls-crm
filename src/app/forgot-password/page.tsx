@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="you@lifescientific.com"
+                    placeholder="you@example.com"
                     required
                     autoComplete="email"
                     disabled={loading}

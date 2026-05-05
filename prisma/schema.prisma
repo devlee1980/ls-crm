@@ -27,6 +27,10 @@ model User {
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
 
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret     String?
+  mfaEnrolledAt DateTime?
+
   entityId String?
   entity   Entity? @relation(fields: [entityId], references: [id])
 
@@ -37,9 +41,22 @@ model User {
   forecasts      Forecast[]
   actionItems    ActionItem[]
   revenueRecords RevenueRecord[]
-  pipelineDeals  PipelineDeal[] @relation("PipelineDeals")
+  pipelineDeals  PipelineDeal[]   @relation("PipelineDeals")
+  mfaBackupCodes MfaBackupCode[]
 
   @@map("users")
+}
+
+model MfaBackupCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("mfa_backup_codes")
 }
 
 enum UserRole {

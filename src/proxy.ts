@@ -10,10 +10,25 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-DNS-Prefetch-Control": "off",
 };
 
+// Routes a half-authenticated (MFA-incomplete) user may still reach.
+const MFA_BYPASS_PREFIXES = [
+  "/mfa",
+  "/api/auth",
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+];
+
+function isMfaBypassed(pathname: string): boolean {
+  return MFA_BYPASS_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-
   const isLoggedIn = !!req.auth;
+  const mfaVerified = req.auth?.user?.mfaVerified === true;
   const isAuthRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/forgot-password") ||
@@ -22,8 +37,11 @@ export default auth((req) => {
   let response: NextResponse;
 
   if (isAuthRoute) {
-    if (isLoggedIn) {
+    if (isLoggedIn && mfaVerified) {
       response = NextResponse.redirect(new URL("/dashboard", req.url));
+    } else if (isLoggedIn) {
+      // Logged in but still need to enroll/verify MFA.
+      response = NextResponse.redirect(new URL("/mfa/enroll", req.url));
     } else {
       response = NextResponse.next();
     }
@@ -32,6 +50,8 @@ export default auth((req) => {
     // Preserve the intended destination so we can redirect back after login
     loginUrl.searchParams.set("callbackUrl", pathname);
     response = NextResponse.redirect(loginUrl);
+  } else if (!mfaVerified && !isMfaBypassed(pathname)) {
+    response = NextResponse.redirect(new URL("/mfa/enroll", req.url));
   } else {
     response = NextResponse.next();
   }

@@ -7,6 +7,8 @@ declare module "next-auth" {
       role: string;
       division?: string | null;
       sessionTimeoutMinutes: number;
+      mfaEnabled: boolean;
+      mfaVerified: boolean;
     };
   }
 
@@ -14,6 +16,8 @@ declare module "next-auth" {
     role?: string;
     division?: string | null;
     sessionTimeoutMinutes?: number;
+    mfaEnabled?: boolean;
+    mfaVerified?: boolean;
   }
 }
 
@@ -23,5 +27,7 @@ declare module "next-auth/jwt" {
     role?: string;
     division?: string | null;
     sessionTimeoutMinutes?: number;
+    mfaEnabled?: boolean;
+    mfaVerified?: boolean;
   }
 }

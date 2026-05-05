@@ -45,6 +45,8 @@ export async function GET(req: Request) {
       region: true,
       isActive: true,
       createdAt: true,
+      mfaEnabled: true,
+      mfaEnrolledAt: true,
       _count: { select: { customers: true, actionItems: true } },
     },
     orderBy: [{ division: "asc" }, { name: "asc" }],

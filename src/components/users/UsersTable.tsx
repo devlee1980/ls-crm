@@ -44,6 +44,8 @@ import {
   Search,
   Users,
   Flag,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { formatDate, getInitials } from "@/lib/formatters";
 
@@ -56,6 +58,8 @@ interface UserRow {
   region: string | null;
   isActive: boolean;
   createdAt: string;
+  mfaEnabled: boolean;
+  mfaEnrolledAt: string | null;
   _count: { customers: number; actionItems: number };
 }
 
@@ -287,6 +291,30 @@ export function UsersTable({ initialUsers, currentUserId }: UsersTableProps) {
                           {DIVISION_LABELS[user.division]}
                         </Badge>
                       )}
+
+                      {/* MFA */}
+                      <div
+                        className="hidden md:flex items-center gap-1 text-xs shrink-0 w-28"
+                        title={
+                          user.mfaEnabled
+                            ? user.mfaEnrolledAt
+                              ? `Enrolled ${formatDate(user.mfaEnrolledAt)}`
+                              : "Enrolled"
+                            : "MFA not enrolled"
+                        }
+                      >
+                        {user.mfaEnabled ? (
+                          <>
+                            <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
+                            <span className="text-green-700">MFA on</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+                            <span className="text-amber-700">MFA pending</span>
+                          </>
+                        )}
+                      </div>
 
                       {/* Counts */}
                       <div className="hidden md:flex gap-4 text-xs text-muted-foreground shrink-0">
