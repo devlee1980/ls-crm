@@ -6,7 +6,7 @@ const MFA_ISSUER = process.env.MFA_ISSUER ?? "LS Nexus";
 const TOTP_ALGORITHM = "SHA1";
 const TOTP_DIGITS = 6;
 const TOTP_PERIOD = 30;
-const TOTP_WINDOW = 1; // ±30s drift tolerance
+const TOTP_WINDOW = 2; // ±60s drift tolerance (covers most clock skew)
 
 const BACKUP_CODE_COUNT = 10;
 const BACKUP_CODE_LENGTH = 10;
@@ -111,7 +111,19 @@ export function verifyTotpFromBase32(base32: string, code: string): boolean {
   } catch {
     return false;
   }
-  return totp.validate({ token: code, window: TOTP_WINDOW }) !== null;
+  const result = totp.validate({ token: code, window: TOTP_WINDOW }) !== null;
+  if (!result && process.env.NODE_ENV !== "production") {
+    // Help diagnose clock-drift / wrong-entry issues during development.
+    const expectedNow = totp.generate();
+    const past = totp.generate({ timestamp: Date.now() - 30_000 });
+    const future = totp.generate({ timestamp: Date.now() + 30_000 });
+    console.warn(
+      `[mfa] TOTP verify failed. submitted=${code}  expected_now=${expectedNow}  ` +
+        `prev30s=${past}  next30s=${future}  ` +
+        `serverTime=${new Date().toISOString()}  secret_prefix=${base32.slice(0, 6)}…`
+    );
+  }
+  return result;
 }
 
 export interface GeneratedBackupCodes {

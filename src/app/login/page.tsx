@@ -264,9 +264,21 @@ export default function LoginPage() {
                     {mfaMode === "totp" ? "Verification code" : "Backup code"}
                   </Label>
                   <Input
+                    // `key` forces a fresh DOM node when the mode toggles so
+                    // browser/password-manager autofill from the prior render
+                    // (e.g. an email autofilled into the field) is discarded.
+                    key={`mfa-${mfaMode}`}
                     id="mfa-code"
+                    name="mfa-code"
+                    type="text"
                     inputMode={mfaMode === "totp" ? "numeric" : "text"}
                     autoComplete="one-time-code"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-form-type="other"
                     pattern={mfaMode === "totp" ? "\\d{6}" : undefined}
                     maxLength={mfaMode === "totp" ? 6 : 12}
                     placeholder={mfaMode === "totp" ? "123456" : "ABCD-EFGH"}
